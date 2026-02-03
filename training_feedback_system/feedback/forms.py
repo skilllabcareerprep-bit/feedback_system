@@ -12,11 +12,11 @@ logger = logging.getLogger(__name__)
 
 class FeedbackForm(forms.ModelForm):
     RATING_CHOICES = [
-        (5, '5 - Strongly Agree'),
-        (4, '4 - Agree'), 
-        (3, '3 - Neutral'),
-        (2, '2 - Disagree'),
         (1, '1 - Strongly Disagree'),
+        (2, '2 - Disagree'),
+        (3, '3 - Neutral'),
+        (4, '4 - Agree'),
+        (5, '5 - Strongly Agree'),
     ]
 
     rating_1 = forms.ChoiceField(
