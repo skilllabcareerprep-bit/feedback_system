@@ -50,22 +50,27 @@ logger = logging.getLogger(__name__)
 
 # Tesseract configuration
 def configure_tesseract():
-    """Configure Tesseract OCR path"""
-    tesseract_path = shutil.which('tesseract')
-    if tesseract_path:
-        pytesseract.pytesseract.tesseract_cmd = tesseract_path
-    else:
-        # Default Windows path - adjust if needed
-        windows_path = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
-        if os.path.exists(windows_path):
-            pytesseract.pytesseract.tesseract_cmd = windows_path
+    """Configure Tesseract OCR path - optional, won't fail if not available"""
+    try:
+        tesseract_path = shutil.which('tesseract')
+        if tesseract_path:
+            pytesseract.pytesseract.tesseract_cmd = tesseract_path
         else:
-            raise ImportError(
-                "Tesseract-OCR not found. Please install Tesseract-OCR and ensure it's in your system PATH"
-            )
+            # Default Windows path - adjust if needed
+            windows_path = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
+            if os.path.exists(windows_path):
+                pytesseract.pytesseract.tesseract_cmd = windows_path
+            # Don't raise error - Tesseract is optional on production
+    except Exception as e:
+        # Tesseract OCR is optional - log warning but don't fail
+        print(f"Warning: Tesseract-OCR not found: {e}")
+        pass
 
-# Call configuration on module load
-configure_tesseract()
+# Call configuration on module load (but don't fail if not available)
+try:
+    configure_tesseract()
+except Exception:
+    pass
 
 # --- Remove minimal admin authentication system ---
 # Removed: is_admin_authenticated, custom session logic, and old admin_required
