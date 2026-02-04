@@ -22,7 +22,7 @@ services:
       - key: ALLOWED_HOSTS
         value: "*.onrender.com,localhost,127.0.0.1"
       - key: OPENAI_API_KEY
-        value: "sk-proj-YOUR_OPENAI_API_KEY_HERE"
+        value: "WILL_BE_SET_IN_RENDER_DASHBOARD"
       - key: DATABASE_URL
         fromService:
           name: training-feedback-db
