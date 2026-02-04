@@ -72,9 +72,8 @@ Content expectations:
 
 Output ONLY a JSON object with a single key "overall_summary" containing the complete analysis as a string.
 
-{
- "overall_summary": "Overall Summary: ... Areas of Improvement: ..."
-}
+Example output format:
+{{"overall_summary": "Overall Summary: [content here] Areas of Improvement: [content here]"}}
 
 Input feedback:
 ---
