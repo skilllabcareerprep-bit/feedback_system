@@ -46,11 +46,11 @@ def analyze_feedback_with_openai(feedback_responses):
 
     prompt = f"""You are a qualitative feedback analyst for a training organization. You are given feedback entries from learners about a training session.
 
-Your task is to analyze the feedback and generate a response using only the two headings listed below:
+Your task is to analyze the feedback and generate a response using only the two sections listed below:
 
-I. Overall Summary
+1. Overall Summary: Provide a concise, high-level view of the session, highlighting strengths and overall experience.
 
-II. Areas of Improvement
+2. Areas of Improvement: Gently describe opportunities to enhance effectiveness, learner engagement, or clarity, framed as suggestions for future refinement.
 
 Guidelines:
 
@@ -60,20 +60,14 @@ Guidelines:
 
 3. Even when feedback is critical, present it using soft, supportive, and forward-looking language.
 
-4. Do not introduce any additional headings or subheadings.
+4. Provide substantial content for each section (3-5 sentences each).
 
 5. Do not mention sentiment labels (e.g., negative or mixed); instead, naturally reflect balance within the wording.
 
-Content expectations:
-
-1. Overall Summary should provide a concise, high-level view of the session, highlighting strengths and overall experience.
-
-2. Areas of Improvement should gently describe opportunities to enhance effectiveness, learner engagement, or clarity, framed as suggestions for future refinement.
-
-Output ONLY a JSON object with a single key "overall_summary" containing the complete analysis as a string.
+Output ONLY a JSON object with two keys: "overall_summary" and "areas_of_improvement". Each value should contain the respective analysis content.
 
 Example output format:
-{{"overall_summary": "Overall Summary: [content here] Areas of Improvement: [content here]"}}
+{{"overall_summary": "[content for overall summary]", "areas_of_improvement": "[content for areas of improvement]"}}
 
 Input feedback:
 ---
@@ -195,9 +189,15 @@ def generate_word_report(session, feedback_responses, ai_analysis):
                     doc.add_paragraph(item, style='List Bullet')
     
     if summary_data and isinstance(summary_data, dict):
+        # Add Overall Summary section
         if 'overall_summary' in summary_data:
             doc.add_heading("Overall Summary", level=2)
             doc.add_paragraph(summary_data['overall_summary'])
+        
+        # Add Areas of Improvement section
+        if 'areas_of_improvement' in summary_data:
+            doc.add_heading("Areas of Improvement", level=2)
+            doc.add_paragraph(summary_data['areas_of_improvement'])
     else:
         if ai_analysis:
             doc.add_paragraph(ai_analysis)
