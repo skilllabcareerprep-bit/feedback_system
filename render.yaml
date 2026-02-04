@@ -7,7 +7,7 @@ services:
       pip install -r requirements.txt &&
       python training_feedback_system/manage.py collectstatic --no-input &&
       python training_feedback_system/manage.py migrate &&
-      python training_feedback_system/manage.py create_default_superuser
+      python training_feedback_system/init_admin.py
     startCommand: gunicorn training_feedback_system.wsgi:application --workers 2 --timeout 60
     envVars:
       - key: DEBUG
