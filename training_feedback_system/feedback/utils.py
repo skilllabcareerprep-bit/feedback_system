@@ -49,7 +49,7 @@ def analyze_feedback_with_openai(feedback_responses):
 Analyze the feedback and provide a comprehensive overall summary that includes:
 1. Overall sentiment of the feedback (positive, negative, or mixed)
 2. Key strengths of the session
-3. Main areas for improvement
+3. Main areas for improvement(Use Soft language)
 4. Actionable recommendations for the trainer
 5. A concise overall assessment in 3-5 sentences
 
