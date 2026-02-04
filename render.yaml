@@ -6,13 +6,20 @@ services:
     buildCommand: >
       pip install -r requirements.txt &&
       python training_feedback_system/manage.py collectstatic --no-input &&
-      python training_feedback_system/manage.py migrate
+      python training_feedback_system/manage.py migrate &&
+      python training_feedback_system/manage.py create_default_superuser
     startCommand: gunicorn training_feedback_system.wsgi:application --workers 2 --timeout 60
     envVars:
       - key: DEBUG
         value: "False"
       - key: PYTHON_VERSION
         value: "3.12.0"
+      - key: ADMIN_USERNAME
+        value: "admin"
+      - key: ADMIN_EMAIL
+        value: "admin@example.com"
+      - key: ADMIN_PASSWORD
+        value: "Feedback@2026"
       - key: ALLOWED_HOSTS
         value: "*.onrender.com,localhost,127.0.0.1"
       - key: DATABASE_URL
