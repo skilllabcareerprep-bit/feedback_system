@@ -4,8 +4,6 @@ services:
     env: python
     plan: free
     buildCommand: >
-      apt-get update &&
-      apt-get install -y tesseract-ocr &&
       pip install -r requirements.txt &&
       python training_feedback_system/manage.py collectstatic --no-input &&
       python training_feedback_system/manage.py migrate
