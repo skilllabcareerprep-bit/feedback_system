@@ -44,19 +44,37 @@ def analyze_feedback_with_openai(feedback_responses):
 
     combined_feedback = "\n---\n".join(feedback_texts)
 
-    prompt = f"""You are a qualitative feedback analyst for a training organization. You are given feedback entries from learners about a training session. Your task is to:
+    prompt = f"""You are a qualitative feedback analyst for a training organization. You are given feedback entries from learners about a training session.
 
-Analyze the feedback and provide a comprehensive overall summary that includes:
-1. Overall sentiment of the feedback (positive, negative, or mixed)
-2. Key strengths of the session
-3. Main areas for improvement(Use Soft language)
-4. Actionable recommendations for the trainer
-5. A concise overall assessment in 3-5 sentences
+Your task is to analyze the feedback and generate a response using only the two headings listed below:
+
+I. Overall Summary
+
+II. Areas of Improvement
+
+Guidelines:
+
+1. The tone must be positive, encouraging, and constructive at all times.
+
+2. Avoid negative wording or critical language; reframe all challenges as opportunities for growth or enhancement.
+
+3. Even when feedback is critical, present it using soft, supportive, and forward-looking language.
+
+4. Do not introduce any additional headings or subheadings.
+
+5. Do not mention sentiment labels (e.g., negative or mixed); instead, naturally reflect balance within the wording.
+
+Content expectations:
+
+1. Overall Summary should provide a concise, high-level view of the session, highlighting strengths and overall experience.
+
+2. Areas of Improvement should gently describe opportunities to enhance effectiveness, learner engagement, or clarity, framed as suggestions for future refinement.
 
 Output ONLY a JSON object with a single key "overall_summary" containing the complete analysis as a string.
 
-Example output format:
-{{"overall_summary": "The session received mixed feedback with [analysis here]. Key strengths include [strengths]. Areas for improvement include [areas]. Recommendations: [recommendations]. Overall: [summary]."}}
+{
+ "overall_summary": "Overall Summary: ... Areas of Improvement: ..."
+}
 
 Input feedback:
 ---
