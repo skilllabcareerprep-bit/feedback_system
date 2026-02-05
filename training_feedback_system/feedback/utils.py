@@ -1,7 +1,7 @@
 import openai
 from django.conf import settings
 from docx import Document
-from docx.shared import Inches, Pt
+from docx.shared import Inches, Pt, RGBColor
 from docx.enum.text import WD_ALIGN_PARAGRAPH
 from docx.enum.table import WD_TABLE_ALIGNMENT
 import matplotlib
@@ -48,9 +48,9 @@ def analyze_feedback_with_openai(feedback_responses):
 
 Your task is to analyze the feedback and generate a response using only the two sections listed below:
 
-1. Overall Summary: Provide a concise, high-level view of the session, highlighting strengths and overall experience.
+1. Overall Summary: Provide a concise, high-level view of the session, highlighting strengths and overall experience. Format this as bullet points (3-5 bullets).
 
-2. Areas of Improvement: Gently describe opportunities to enhance effectiveness, learner engagement, or clarity, framed as suggestions for future refinement.
+2. Areas of Improvement: Provide opportunities to enhance effectiveness, learner engagement, or clarity, framed as suggestions for future refinement. Format this as bullet points (3-5 bullets).
 
 Guidelines:
 
@@ -60,14 +60,16 @@ Guidelines:
 
 3. Even when feedback is critical, present it using soft, supportive, and forward-looking language.
 
-4. Provide substantial content for each section (3-5 sentences each).
+4. Each bullet point should be concise but meaningful (1-2 sentences max per bullet).
 
 5. Do not mention sentiment labels (e.g., negative or mixed); instead, naturally reflect balance within the wording.
 
-Output ONLY a JSON object with two keys: "overall_summary" and "areas_of_improvement". Each value should contain the respective analysis content.
+6. Format each section's content as a bulleted list with dashes (- bullet point text).
+
+Output ONLY a JSON object with two keys: "overall_summary" and "areas_of_improvement". Each value should contain the respective analysis content formatted as bulleted lists.
 
 Example output format:
-{{"overall_summary": "[content for overall summary]", "areas_of_improvement": "[content for areas of improvement]"}}
+{{"overall_summary": "- Bullet point 1\\n- Bullet point 2\\n- Bullet point 3", "areas_of_improvement": "- Bullet point 1\\n- Bullet point 2\\n- Bullet point 3"}}
 
 Input feedback:
 ---
@@ -162,13 +164,12 @@ def generate_word_report(session, feedback_responses, ai_analysis):
     doc.add_heading(f"Feedback Report: {session.session_title}", 0)
     doc.add_paragraph(f"Trainer: {session.trainer.name}")
     doc.add_paragraph(f"Date: {session.date.strftime('%B %d, %Y')}")
-    doc.add_paragraph(f"Location: {session.location}")
+    doc.add_paragraph(f"Institution: {session.institution}")
+    doc.add_paragraph(f"Audience: {session.audience}")
     doc.add_paragraph(f"Duration: {session.duration_hours} hrs")
     doc.add_paragraph("")
 
-    # Add Professional Summary Table (Key Learnings & Missing Elements)
-    doc.add_heading("Feedback Summary (Key Learnings & Missing Elements)", level=1)
-    
+    # Parse AI analysis
     summary_data = None
     if ai_analysis:
         try:
@@ -176,36 +177,35 @@ def generate_word_report(session, feedback_responses, ai_analysis):
         except Exception:
             summary_data = None
     
-    def add_bullet_section(heading, value):
-        doc.add_heading(heading, level=2)
-        if isinstance(value, list):
-            for item in value:
-                if item and str(item).strip():
-                    doc.add_paragraph(str(item).lstrip('-• '), style='List Bullet')
-        elif isinstance(value, str):
-            lines = [line.strip('-• \n') for line in value.split('\n') if line.strip('-• \n')]
-            for item in lines:
-                if item:
-                    doc.add_paragraph(item, style='List Bullet')
-    
+    # 1. Overall Summary section with bullets
+    doc.add_heading("1. Overall Summary", level=1)
     if summary_data and isinstance(summary_data, dict):
-        # Add Overall Summary section
         if 'overall_summary' in summary_data:
-            doc.add_heading("Overall Summary", level=2)
-            doc.add_paragraph(summary_data['overall_summary'])
-        
-        # Add Areas of Improvement section
-        if 'areas_of_improvement' in summary_data:
-            doc.add_heading("Areas of Improvement", level=2)
-            doc.add_paragraph(summary_data['areas_of_improvement'])
+            summary_text = summary_data['overall_summary']
+            lines = [line.strip('-• \n') for line in summary_text.split('\n') if line.strip('-• \n')]
+            for line in lines:
+                if line:
+                    doc.add_paragraph(line, style='List Bullet')
     else:
         if ai_analysis:
-            doc.add_paragraph(ai_analysis)
+            doc.add_paragraph(ai_analysis, style='List Bullet')
     
     doc.add_paragraph("")
 
-    # Add Charts
-    doc.add_heading("Feedback Charts", level=1)
+    # 2. Areas of Improvement section with bullets
+    doc.add_heading("2. Areas of Improvement", level=1)
+    if summary_data and isinstance(summary_data, dict):
+        if 'areas_of_improvement' in summary_data:
+            improvement_text = summary_data['areas_of_improvement']
+            lines = [line.strip('-• \n') for line in improvement_text.split('\n') if line.strip('-• \n')]
+            for line in lines:
+                if line:
+                    doc.add_paragraph(line, style='List Bullet')
+    
+    doc.add_paragraph("")
+
+    # 3. Feedback Charts
+    doc.add_heading("3. Feedback Charts", level=1)
     
     FEEDBACK_QUESTIONS = [
         "The training met my expectations",
@@ -219,11 +219,16 @@ def generate_word_report(session, feedback_responses, ai_analysis):
     ]
     
     for i, question in enumerate(FEEDBACK_QUESTIONS, start=1):
+        # Add numbered subheading with bold text
+        paragraph = doc.add_paragraph()
+        run = paragraph.add_run(f"3.{i} {question}")
+        run.bold = True
+        run.font.color.rgb = RGBColor(0, 0, 0)  # Black color
+        
         img_base64 = create_rating_chart(feedback_responses, question, i)
         if img_base64.startswith('data:image/png;base64,'):
             img_data = base64.b64decode(img_base64.split(',')[1])
             image_stream = BytesIO(img_data)
-            doc.add_paragraph(question)
             doc.add_picture(image_stream, width=Inches(5.5))
             doc.add_paragraph("")
 

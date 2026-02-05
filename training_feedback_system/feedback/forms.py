@@ -192,12 +192,13 @@ class TrainerForm(forms.ModelForm):
 class TrainingSessionForm(forms.ModelForm):
     class Meta:
         model = TrainingSession
-        fields = ['session_title', 'trainer', 'date', 'location', 'duration_hours', 'max_participants', 'is_active']
+        fields = ['session_title', 'trainer', 'date', 'institution', 'audience', 'duration_hours', 'max_participants', 'is_active']
         widgets = {
             'session_title': forms.TextInput(attrs={'class': 'form-control'}),
             'trainer': forms.Select(attrs={'class': 'form-select'}),
             'date': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
-            'location': forms.TextInput(attrs={'class': 'form-control'}),
+            'institution': forms.TextInput(attrs={'class': 'form-control'}),
+            'audience': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'e.g., BBA students, IT professionals'}),
             'duration_hours': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.25', 'min': '0'}),
             'max_participants': forms.NumberInput(attrs={'class': 'form-control', 'min': '1'}),
             'is_active': forms.CheckboxInput(attrs={'class': 'form-check-input'})
@@ -213,7 +214,8 @@ class TrainingSessionForm(forms.ModelForm):
                 Field('session_title', css_class='mb-3'),
                 Field('trainer', css_class='mb-3'),
                 Field('date', css_class='mb-3'),
-                Field('location', css_class='mb-3'),
+                Field('institution', css_class='mb-3'),
+                Field('audience', css_class='mb-3'),
                 Field('duration_hours', css_class='mb-3'),
                 Field('max_participants', css_class='mb-3'),
                 Field('is_active', css_class='mb-3'),

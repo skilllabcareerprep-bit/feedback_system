@@ -462,7 +462,8 @@ def session_report_email(request, session_id):
         'trainer_name': session.trainer.name,
         'session_title': session.session_title,
         'date': session.date.strftime('%b %d, %Y'),
-        'location': session.location,
+        'institution': session.institution,
+        'audience': session.audience,
         'avg_rating': avg_rating,
     }
     report_text = render_to_string('feedback/session_report_email.txt', report_context)

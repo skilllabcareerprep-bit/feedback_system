@@ -14,7 +14,8 @@
                         <p class="card-text">
                             <strong>Trainer:</strong> {{ session.trainer.name }}<br>
                             <strong>Date:</strong> {{ session.date|date:"F d, Y" }}<br>
-                            <strong>Location:</strong> {{ session.location }}<br>
+                            <strong>Institution:</strong> {{ session.institution }}<br>
+                            <strong>Audience:</strong> {{ session.audience }}<br>
                             <strong>Duration:</strong> {{ session.duration_hours }} hours
                         </p>
                         <a href="{% url 'feedback:submit_feedback' session.id %}" class="btn btn-success mt-3">Give Feedback</a>

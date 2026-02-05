@@ -282,7 +282,8 @@
       <b>Session:</b> {{ session.session_title }}<br>
       {% if session.trainer %}<b>Trainer:</b> {{ session.trainer.name }}<br>{% endif %}
       {% if session.date %}<b>Date:</b> {{ session.date|date:"F d, Y" }}<br>{% endif %}
-      {% if session.location %}<b>Location:</b> {{ session.location }}<br>{% endif %}
+      {% if session.institution %}<b>Institution:</b> {{ session.institution }}<br>{% endif %}
+      {% if session.audience %}<b>Audience:</b> {{ session.audience }}<br>{% endif %}
     </div>
   {% endif %}
   

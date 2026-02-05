@@ -2,14 +2,15 @@ Subject: Feedback Summary for Your {{ session_title }} Session
 
 Dear {{ trainer_name }},
 
-Thank you for leading the {{ session_title }} session on {{ date }}, at {{ location }}.
+Thank you for leading the {{ session_title }} session on {{ date }}, at {{ institution }} for {{ audience }}.
 
 We have collected participant feedback, and here is a brief summary:
 
 - Average Rating: {{ avg_rating }} out of 5
 - Session Title: {{ session_title }}
 - Date: {{ date }}
-- Location: {{ location }}
+- Institution: {{ institution }}
+- Audience: {{ audience }}
 
 We appreciate your efforts and look forward to your continued contributions with similar valuable sessions.
 

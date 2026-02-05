@@ -5,7 +5,7 @@
 <div class="container">
     <h2>{{ session.session_title }}</h2>
     <p><strong>Trainer:</strong> {{ session.trainer.name }} | <strong>Date:</strong> {{ session.date }}</p>
-    <p><strong>Location:</strong> {{ session.location }} | <strong>Duration:</strong> {{ session.duration_hours }} hrs</p>
+    <p><strong>Institution:</strong> {{ session.institution }} | <strong>Audience:</strong> {{ session.audience }} | <strong>Duration:</strong> {{ session.duration_hours }} hrs</p>
     <hr>
     <h4>Feedback Responses ({{ response_count }})</h4>
     {% if feedback_responses %}

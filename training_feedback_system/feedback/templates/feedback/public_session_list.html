@@ -17,7 +17,8 @@
                 <p class="card-text">
                     <i class="fas fa-user"></i> <strong>Trainer:</strong> {{ session.trainer.name }}<br>
                     <i class="fas fa-calendar"></i> <strong>Date:</strong> {{ session.date|date:"F d, Y" }}<br>
-                    <i class="fas fa-map-marker-alt"></i> <strong>Location:</strong> {{ session.location }}<br>
+                    <i class="fas fa-building"></i> <strong>Institution:</strong> {{ session.institution }}<br>
+                    <i class="fas fa-users"></i> <strong>Audience:</strong> {{ session.audience }}<br>
                     <i class="fas fa-clock"></i> <strong>Duration:</strong> {{ session.duration_hours }} hours
                 </p>
                 <a href="{% url 'feedback:session_feedback' session.id %}" class="btn btn-outline-success btn-sm mt-2">Give Feedback</a>

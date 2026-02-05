@@ -10,9 +10,9 @@ class TrainerAdmin(admin.ModelAdmin):
 
 @admin.register(TrainingSession)
 class TrainingSessionAdmin(admin.ModelAdmin):
-    list_display = ['session_title', 'trainer', 'date', 'location', 'get_feedback_count', 'is_active']
+    list_display = ['session_title', 'trainer', 'date', 'institution', 'audience', 'get_feedback_count', 'is_active']
     list_filter = ['trainer', 'date', 'is_active']
-    search_fields = ['session_title', 'trainer__name', 'location']
+    search_fields = ['session_title', 'trainer__name', 'institution', 'audience']
     list_editable = ['is_active']
     date_hierarchy = 'date'
 
