@@ -6,7 +6,7 @@ services:
     buildCommand: >
       pip install -r requirements.txt &&
       python training_feedback_system/manage.py collectstatic --no-input
-    startCommand: python migrate_with_retry.py && gunicorn training_feedback_system.wsgi:application --workers 2 --timeout 60
+    startCommand: python migrate_with_retry.py ; gunicorn training_feedback_system.wsgi:application --workers 2 --timeout 60
     envVars:
       - key: DEBUG
         value: "False"
