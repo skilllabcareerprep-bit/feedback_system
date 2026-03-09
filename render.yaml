@@ -5,8 +5,9 @@ services:
     plan: free
     buildCommand: >
       pip install -r requirements.txt &&
+      python training_feedback_system/manage.py shell -c "from django.db import connection; connection.ensure_connection()" &&
       python training_feedback_system/manage.py collectstatic --no-input &&
-      python training_feedback_system/manage.py migrate
+      python training_feedback_system/manage.py migrate --noinput
     startCommand: gunicorn training_feedback_system.wsgi:application --workers 2 --timeout 60
     envVars:
       - key: DEBUG
