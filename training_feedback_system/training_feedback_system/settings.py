@@ -19,10 +19,7 @@ INSTALLED_APPS = [
     'feedback.apps.FeedbackConfig',
     'crispy_forms',
     'crispy_bootstrap5',
-    'django.contrib.sites',
 ]
-
-SITE_ID = 1
 
 AUTHENTICATION_BACKENDS = [
     'django.contrib.auth.backends.ModelBackend',
@@ -118,8 +115,11 @@ EMAIL_HOST_PASSWORD = config('EMAIL_HOST_PASSWORD', default='')
 DEFAULT_FROM_EMAIL = config('DEFAULT_FROM_EMAIL', default=EMAIL_HOST_USER)
 
 # Celery Configuration (for background tasks)
-CELERY_BROKER_URL = config('REDIS_URL', default='redis://localhost:6379/0')
-CELERY_RESULT_BACKEND = config('REDIS_URL', default='redis://localhost:6379/0')
+# Don't connect to Redis on Render if not available
+REDIS_URL = config('REDIS_URL', default=None)
+if REDIS_URL:
+    CELERY_BROKER_URL = REDIS_URL
+    CELERY_RESULT_BACKEND = REDIS_URL
 
 # File Upload Settings
 MAX_UPLOAD_SIZE = 5242880  # 5MB
