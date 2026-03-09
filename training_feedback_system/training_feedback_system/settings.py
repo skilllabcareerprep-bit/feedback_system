@@ -55,11 +55,11 @@ if config('DATABASE_URL', default=''):
             conn_health_checks=True,
         )
     }
-    # SSL configuration: Disable SSL entirely to avoid negotiation issues on Render free-tier
+    # SSL configuration: Render PostgreSQL requires SSL
     if 'OPTIONS' not in DATABASES['default']:
         DATABASES['default']['OPTIONS'] = {}
-    # Disable SSL to avoid connection failures during database wake-up from hibernation
-    DATABASES['default']['OPTIONS']['sslmode'] = 'disable'
+    # Use sslmode='require' - Render database enforces SSL and rejects disable
+    DATABASES['default']['OPTIONS']['sslmode'] = 'require'
     DATABASES['default']['OPTIONS']['connect_timeout'] = 30
 else:
     DATABASES = {
