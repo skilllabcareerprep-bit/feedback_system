@@ -77,11 +77,14 @@ if dj_database_url and config('DATABASE_URL', default=None):
             conn_health_checks=True,
         )
     }
-    # Add SSL options for PostgreSQL
+    # Add SSL options for PostgreSQL with fallback
+    # Use 'prefer' instead of 'require' to handle hibernated databases on Render free tier
     if 'OPTIONS' not in DATABASES['default']:
         DATABASES['default']['OPTIONS'] = {}
-    DATABASES['default']['OPTIONS']['sslmode'] = 'require'
-    DATABASES['default']['OPTIONS']['connect_timeout'] = 10
+    DATABASES['default']['OPTIONS']['sslmode'] = 'prefer'  # Allows fallback if SSL fails
+    DATABASES['default']['OPTIONS']['connect_timeout'] = 15  # Increased timeout
+    DATABASES['default']['OPTIONS']['keepalives'] = 1
+    DATABASES['default']['OPTIONS']['keepalives_idle'] = 30
 else:
     DATABASES = {
         'default': {
