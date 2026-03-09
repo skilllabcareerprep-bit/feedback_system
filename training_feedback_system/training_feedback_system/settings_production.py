@@ -75,12 +75,13 @@ if dj_database_url and config('DATABASE_URL', default=None):
             default=config('DATABASE_URL'),
             conn_max_age=600,
             conn_health_checks=True,
-            options={
-                'sslmode': 'require',
-                'connect_timeout': 10,
-            }
         )
     }
+    # Add SSL options for PostgreSQL
+    if 'OPTIONS' not in DATABASES['default']:
+        DATABASES['default']['OPTIONS'] = {}
+    DATABASES['default']['OPTIONS']['sslmode'] = 'require'
+    DATABASES['default']['OPTIONS']['connect_timeout'] = 10
 else:
     DATABASES = {
         'default': {
