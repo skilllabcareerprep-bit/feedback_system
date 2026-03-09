@@ -22,7 +22,7 @@ INSTALLED_APPS = [
 ]
 
 AUTHENTICATION_BACKENDS = [
-    'django.contrib.auth.backends.ModelBackend',
+    'feedback.auth_backends.RetryAuthenticationBackend',
 ]
 
 ROOT_URLCONF = 'training_feedback_system.urls'
