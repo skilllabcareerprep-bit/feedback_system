@@ -60,7 +60,7 @@ if config('DATABASE_URL', default=''):
         DATABASES['default']['OPTIONS'] = {}
     # Use 'prefer' to allow non-SSL fallback when hibernated database wakes up
     DATABASES['default']['OPTIONS']['sslmode'] = 'prefer'
-    DATABASES['default']['OPTIONS']['connect_timeout'] = 10
+    DATABASES['default']['OPTIONS']['connect_timeout'] = 30  # Increased from 10 to 30 seconds
 else:
     DATABASES = {
         'default': {
