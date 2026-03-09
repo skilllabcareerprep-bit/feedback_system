@@ -55,12 +55,12 @@ if config('DATABASE_URL', default=''):
             conn_health_checks=True,
         )
     }
-    # SSL configuration: Allow fallback if SSL fails
+    # SSL configuration: Disable SSL entirely to avoid negotiation issues on Render free-tier
     if 'OPTIONS' not in DATABASES['default']:
         DATABASES['default']['OPTIONS'] = {}
-    # Use 'prefer' to allow non-SSL fallback when hibernated database wakes up
-    DATABASES['default']['OPTIONS']['sslmode'] = 'prefer'
-    DATABASES['default']['OPTIONS']['connect_timeout'] = 30  # Increased from 10 to 30 seconds
+    # Disable SSL to avoid connection failures during database wake-up from hibernation
+    DATABASES['default']['OPTIONS']['sslmode'] = 'disable'
+    DATABASES['default']['OPTIONS']['connect_timeout'] = 30
 else:
     DATABASES = {
         'default': {
