@@ -601,12 +601,6 @@ def upload_feedback_image(request):
         if tmp_path and os.path.exists(tmp_path):
             try:
                 os.remove(tmp_path)
-            except:
-                pass
-    finally:
-        if tmp_path and os.path.exists(tmp_path):
-            try:
-                os.unlink(tmp_path)
             except Exception as e:
                 logger.error(f"Error removing temp file: {str(e)}")
 
