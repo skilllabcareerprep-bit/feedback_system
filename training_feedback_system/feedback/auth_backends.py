@@ -61,13 +61,21 @@ class RetryAuthenticationBackend(ModelBackend):
     def _ping_database(self):
         """
         Ping the database to wake it up from hibernation.
-        Uses a simple query to test connectivity.
+        Uses a simple query to test connectivity with built-in retry logic.
         """
-        try:
-            with connection.cursor() as cursor:
-                cursor.execute("SELECT 1")
-            logger.info("Database ping successful")
-        except Exception as e:
-            error_msg = str(e)
-            logger.warning(f"Database ping failed: {error_msg}")
-            raise
+        max_ping_retries = 3
+        for attempt in range(max_ping_retries):
+            try:
+                with connection.cursor() as cursor:
+                    cursor.execute("SELECT 1")
+                logger.info("Database ping successful")
+                return  # Success - exit
+            except Exception as e:
+                error_msg = str(e)
+                if attempt < max_ping_retries - 1:
+                    wait_time = 2 * (attempt + 1)  # 2s, 4s
+                    logger.warning(f"Database ping attempt {attempt + 1}/{max_ping_retries} failed: {error_msg}. Retrying in {wait_time}s...")
+                    time.sleep(wait_time)
+                else:
+                    logger.error(f"Database ping failed after {max_ping_retries} attempts: {error_msg}")
+                    raise

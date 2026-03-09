@@ -51,7 +51,7 @@ if config('DATABASE_URL', default=''):
     DATABASES = {
         'default': dj_database_url.config(
             default=config('DATABASE_URL'),
-            conn_max_age=0,  # Don't persist connections
+            conn_max_age=600,  # CRITICAL: Keep connections alive on Render free tier
             conn_health_checks=True,
         )
     }
@@ -61,6 +61,8 @@ if config('DATABASE_URL', default=''):
     # Use sslmode='require' - Render database enforces SSL and rejects disable
     DATABASES['default']['OPTIONS']['sslmode'] = 'require'
     DATABASES['default']['OPTIONS']['connect_timeout'] = 30
+    # Ensure PORT is set correctly for Render
+    DATABASES['default']['PORT'] = DATABASES['default'].get('PORT') or '5432'
 else:
     DATABASES = {
         'default': {
@@ -164,3 +166,37 @@ if not DEBUG:
     SECURE_HSTS_SECONDS = 31536000
     SECURE_HSTS_INCLUDE_SUBDOMAINS = True
     SECURE_HSTS_PRELOAD = True
+    SECURE_CONTENT_TYPE_NOSNIFF = True
+    SECURE_BROWSER_XSS_FILTER = True
+    X_FRAME_OPTIONS = 'DENY'
+
+# Session security - ALWAYS secure in production
+if not DEBUG:
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
+
+# Logging configuration for production debugging
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'handlers': {
+        'console': {
+            'class': 'logging.StreamHandler',
+        },
+    },
+    'root': {
+        'handlers': ['console'],
+        'level': 'INFO',
+    },
+    'loggers': {
+        'feedback.auth_backends': {
+            'handlers': ['console'],
+            'level': 'DEBUG',
+            'propagate': False,
+        },
+        'django.db.backends': {
+            'handlers': ['console'],
+            'level': 'DEBUG' if DEBUG else 'INFO',
+        },
+    },
+}
