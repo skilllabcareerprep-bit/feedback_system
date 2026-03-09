@@ -1,13 +1,5 @@
 import openai
 from django.conf import settings
-from docx import Document
-from docx.shared import Inches, Pt, RGBColor
-from docx.enum.text import WD_ALIGN_PARAGRAPH
-from docx.enum.table import WD_TABLE_ALIGNMENT
-import matplotlib
-matplotlib.use('Agg')
-import matplotlib.pyplot as plt
-import seaborn as sns
 from io import BytesIO
 import base64
 from collections import Counter
@@ -15,20 +7,26 @@ import json
 from django.core.mail import EmailMessage
 from django.template.loader import render_to_string
 import os
-import pandas as pd
-import numpy as np
 from collections import defaultdict
 from typing import Dict, List, Optional
 import warnings
 warnings.filterwarnings('ignore')
 
-# Configure OpenAI
-openai.api_key = settings.OPENAI_API_KEY
+# Configure OpenAI (lazy load if needed)
+_openai_configured = False
+
+def _ensure_openai_configured():
+    global _openai_configured
+    if not _openai_configured:
+        openai.api_key = settings.OPENAI_API_KEY
+        _openai_configured = True
 
 def analyze_feedback_with_openai(feedback_responses):
     """
     Analyze feedback responses using OpenAI API
     """
+    _ensure_openai_configured()
+    
     if not openai.api_key:
         return "OpenAI API key not configured"
 
@@ -95,7 +93,15 @@ Output only the JSON object, no additional text:"""
 def create_rating_chart(feedback_responses, statement_text, statement_number):
     """
     Create a professional bar chart for rating distribution and return as base64 image string.
+    Heavy imports loaded here only when function is called.
     """
+    import matplotlib
+    matplotlib.use('Agg')
+    import matplotlib.pyplot as plt
+    import seaborn as sns
+    import pandas as pd
+    import numpy as np
+    
     ratings = []
     for response in feedback_responses:
         rating_value = getattr(response, f'rating_{statement_number}')
@@ -153,7 +159,13 @@ def generate_word_report(session, feedback_responses, ai_analysis):
     """
     Generate a professional Word report for a session, including feedback summaries and charts.
     Returns a tuple (report_path, report_filename).
+    Heavy imports loaded here only when report generation is requested.
     """
+    from docx import Document
+    from docx.shared import Inches, Pt, RGBColor
+    from docx.enum.text import WD_ALIGN_PARAGRAPH
+    from docx.enum.table import WD_TABLE_ALIGNMENT
+    
     report_filename = f"feedback_report_{session.id}.docx"
     report_path = os.path.join('media', 'reports', report_filename)
     os.makedirs(os.path.dirname(report_path), exist_ok=True)

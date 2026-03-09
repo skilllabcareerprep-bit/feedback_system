@@ -16,42 +16,42 @@ import os
 
 # Update local imports to use relative imports
 from .models import TrainingSession, FeedbackResponse, Trainer, FeedbackReport, FeedbackImage
-from .utils import FeedbackAnalyzer
 from .rating_detector import AdvancedRatingDetector
 
-# Third-party imports
-try:
-    import cv2
-except ImportError:
-    raise ImportError("Please install opencv-python: pip install opencv-python")
-
-try:
-    import pytesseract
-    import qrcode
-    import numpy as np
-    import pandas as pd
-except ImportError as e:
-    raise ImportError(f"Missing required package: {str(e)}. Please install all required packages.")
-
-# Standard library imports
+# Standard library imports - Load these immediately
 import json
 import os
 import tempfile
 import shutil
 import base64
 from io import BytesIO
-from PIL import Image
-from rapidfuzz import fuzz, process
 import traceback
 import logging
+
+# Heavy imports to be lazy-loaded:
+# - cv2 (opencv-python)
+# - pytesseract
+# - qrcode
+# - numpy, pandas
+# - PIL
+# - seaborn, matplotlib
+# These will be imported inside the functions that use them
 
 # Configure logging
 logger = logging.getLogger(__name__)
 
-# Tesseract configuration
+# Tesseract configuration - Load on first use only
+_tesseract_configured = False
+
 def configure_tesseract():
-    """Configure Tesseract OCR path - optional, won't fail if not available"""
+    """Configure Tesseract OCR path - loads pytesseract only when needed"""
+    global _tesseract_configured
+    if _tesseract_configured:
+        return
+    
     try:
+        import pytesseract
+        import shutil
         tesseract_path = shutil.which('tesseract')
         if tesseract_path:
             pytesseract.pytesseract.tesseract_cmd = tesseract_path
@@ -63,14 +63,9 @@ def configure_tesseract():
             # Don't raise error - Tesseract is optional on production
     except Exception as e:
         # Tesseract OCR is optional - log warning but don't fail
-        print(f"Warning: Tesseract-OCR not found: {e}")
-        pass
-
-# Call configuration on module load (but don't fail if not available)
-try:
-    configure_tesseract()
-except Exception:
-    pass
+        logger.warning(f"Tesseract-OCR not configured: {e}")
+    
+    _tesseract_configured = True
 
 # --- Remove minimal admin authentication system ---
 # Removed: is_admin_authenticated, custom session logic, and old admin_required
@@ -214,6 +209,8 @@ def session_detail(request, session_id):
     Returns:
         HttpResponse: Rendered HTML page with session details.
     """
+    from .utils import create_rating_chart
+    
     session = get_object_or_404(TrainingSession, id=session_id)
     feedback_responses = FeedbackResponse.objects.filter(session=session)
     response_count = feedback_responses.count()
@@ -229,7 +226,6 @@ def session_detail(request, session_id):
         "Overall, the session was very good"
     ]
     category_image_pairs = []
-    from .utils import create_rating_chart
     for i, question in enumerate(FEEDBACK_QUESTIONS, start=1):
         img_url = create_rating_chart(feedback_responses, question, i)
         category_image_pairs.append((question, img_url))
@@ -371,6 +367,7 @@ def download_report(request, session_id):
         HttpResponse: Plain text response for download.
     """
     from .utils import generate_word_report, analyze_feedback_with_openai
+    
     session = get_object_or_404(TrainingSession, id=session_id)
     feedback_responses = session.feedbackresponse_set.all()
     # Optionally run AI analysis (can be skipped or cached)
@@ -393,6 +390,10 @@ def download_feedback_qr(request, session_id):
     Returns:
         FileResponse: PNG image file of the QR code.
     """
+    from io import BytesIO
+    import qrcode
+    from qrcode.constants import ERROR_CORRECT_L
+    
     session = get_object_or_404(TrainingSession, id=session_id)
     try:
         feedback_url = request.build_absolute_uri(
@@ -400,7 +401,7 @@ def download_feedback_qr(request, session_id):
         )
         qr = qrcode.QRCode(
             version=1,
-            error_correction=QR_ERROR_CORRECT_L,
+            error_correction=ERROR_CORRECT_L,
             box_size=10,
             border=4
         )
@@ -408,11 +409,7 @@ def download_feedback_qr(request, session_id):
         qr.make(fit=True)
         img = qr.make_image(fill_color="black", back_color="white")
         buf = BytesIO()
-        # Save QR code image to buffer (PIL Image)
-        try:
-            img.save(buf)
-        except Exception:
-            img.save(buf)
+        img.save(buf)
         buf.seek(0)
         filename = f"feedback_session_{getattr(session, 'id', 'unknown')}_qr.png"
         response = FileResponse(buf, as_attachment=True, filename=filename)
@@ -521,11 +518,10 @@ def upload_feedback_image(request):
         'content_type': request.content_type,
         'has_file': 'image_file' in request.FILES,
         'session_id': request.POST.get('session'),
-        'tesseract_path': pytesseract.pytesseract.tesseract_cmd,
-        'tesseract_exists': os.path.isfile(pytesseract.pytesseract.tesseract_cmd),
     }
 
     if request.method == 'GET':
+        from .forms import FeedbackImageUploadForm
         form = FeedbackImageUploadForm()
         return render(request, 'feedback/upload_feedback_image.html', {'form': form})
 
@@ -538,22 +534,25 @@ def upload_feedback_image(request):
 
     tmp_path = None
     try:
+        import cv2
+        import numpy as np
+        
         session_id = request.POST.get('session')
         if not session_id or not session_id.isdigit():
-            raise ValidationError('Please select a valid session.')
+            raise ValueError('Please select a valid session.')
 
         session = get_object_or_404(TrainingSession, id=session_id)
         image_file = request.FILES.get('image_file')
         
         if not image_file:
-            raise ValidationError('No image file received.')
+            raise ValueError('No image file received.')
 
         # Validate file size and type
         if image_file.size > settings.MAX_UPLOAD_SIZE:
-            raise ValidationError('File size too large.')
+            raise ValueError('File size too large.')
             
         if not image_file.content_type.startswith('image/'):
-            raise ValidationError('Invalid file type.')
+            raise ValueError('Invalid file type.')
 
         with tempfile.NamedTemporaryFile(suffix='.jpg', delete=False) as tmp:
             for chunk in image_file.chunks():
@@ -562,7 +561,7 @@ def upload_feedback_image(request):
 
         img = cv2.imread(tmp_path)
         if img is None:
-            raise ValidationError('Failed to read image file')
+            raise ValueError('Failed to read image file')
 
         detector = AdvancedRatingDetector()
         ratings, detection_debug = detector.detect_ratings(img)
@@ -579,25 +578,31 @@ def upload_feedback_image(request):
             'visualization': viz_base64,
             'debug_info': {
                 **debug_info,
-                'image_size': img.shape,
+                'image_size': img.shape if img is not None else 'unknown',
                 'detection_info': detection_debug,
                 'ratings_summary': confidence_stats
             }
         })
 
-    except ValidationError as ve:
+    except ValueError as ve:
         return JsonResponse({
             'success': False,
             'error': str(ve),
             'debug_info': debug_info
         })
     except Exception as e:
-        logger.error(f"Error processing image: {str(e)}")
+        logger.error(f"Error processing image: {str(e)}", exc_info=True)
         return JsonResponse({
             'success': False,
             'error': 'An error occurred while processing the image.',
             'debug_info': debug_info
         })
+    finally:
+        if tmp_path and os.path.exists(tmp_path):
+            try:
+                os.remove(tmp_path)
+            except:
+                pass
     finally:
         if tmp_path and os.path.exists(tmp_path):
             try:
