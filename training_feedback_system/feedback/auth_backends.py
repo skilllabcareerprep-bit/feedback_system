@@ -1,5 +1,6 @@
 """
-Custom authentication backend with aggressive retry logic for handling database hibernation on Render.
+Custom authentication backend with aggressive retry logic for handling database connection failures on Render.
+Simplified to avoid pinging which causes SSL reconnection issues on free tier.
 """
 import time
 import logging
@@ -15,67 +16,56 @@ User = get_user_model()
 class RetryAuthenticationBackend(ModelBackend):
     """
     Custom backend that retries authentication on database connection failures.
-    Specifically handles Render's free-tier PostgreSQL hibernation issues with aggressive retries.
+    Specifically handles Render's free-tier PostgreSQL connection drops.
+    
+    CRITICAL: Does NOT ping database before retrying - pinging causes SSL reconnection 
+    issues on free tier. Instead, relies on connection recycling via reduced CONN_MAX_AGE.
     """
     
-    MAX_RETRIES = 5
-    RETRY_DELAYS = [2, 3, 5, 7, 10]  # Increasing delays in seconds
+    MAX_RETRIES = 3  # Reduced from 5, since pinging is removed
+    RETRY_DELAYS = [1, 2, 3]  # Quick succession retries
     
     def authenticate(self, request, username=None, password=None, **kwargs):
         """
-        Authenticate with aggressive retry logic for connection failures.
+        Authenticate with retry logic for connection failures.
+        Avoids database pinging which triggers SSL errors on Render free tier.
         """
+        last_exception = None
+        
         for attempt in range(self.MAX_RETRIES):
             try:
-                # Force database connection reset
+                # Reset stale connection before each retry attempt
                 connection.close()
-                
-                # Try to ping database to wake it from hibernation
-                self._ping_database()
                 
                 # Proceed with normal authentication
                 return super().authenticate(request, username=username, password=password, **kwargs)
                 
             except Exception as e:
+                last_exception = e
                 error_message = str(e)
                 
-                # Check if it's a connection/SSL error
-                if any(keyword in error_message for keyword in ['SSL', 'connection', 'failed', 'closed', 'timeout', 'refused']):
-                    delay = self.RETRY_DELAYS[attempt] if attempt < len(self.RETRY_DELAYS) else self.RETRY_DELAYS[-1]
-                    logger.warning(f"Database connection attempt {attempt + 1}/{self.MAX_RETRIES} failed: {error_message}. Retrying in {delay}s...")
+                # Check if it's a connection/SSL error worth retrying
+                if any(keyword in error_message.lower() for keyword in 
+                       ['ssl', 'connection', 'failed', 'closed', 'timeout', 'refused', 'operational']):
                     
                     if attempt < self.MAX_RETRIES - 1:
-                        # Wait before retrying (increasing delays)
+                        delay = self.RETRY_DELAYS[attempt]
+                        logger.warning(
+                            f"Database connection attempt {attempt + 1}/{self.MAX_RETRIES} failed: {error_message}. "
+                            f"Retrying in {delay}s..."
+                        )
                         time.sleep(delay)
-                        # Force connection reset
-                        connection.close()
-                        continue
                     else:
-                        logger.error(f"Authentication failed after {self.MAX_RETRIES} attempts")
-                        raise
+                        logger.error(
+                            f"Authentication failed after {self.MAX_RETRIES} connection retry attempts. "
+                            f"Last error: {error_message}"
+                        )
                 else:
                     # Not a connection error (e.g., invalid credentials), raise immediately
-                    logger.warning(f"Authentication error (non-connection): {error_message}")
+                    logger.debug(f"Non-connection authentication error: {error_message}")
                     raise
-    
-    def _ping_database(self):
-        """
-        Ping the database to wake it up from hibernation.
-        Uses a simple query to test connectivity with built-in retry logic.
-        """
-        max_ping_retries = 3
-        for attempt in range(max_ping_retries):
-            try:
-                with connection.cursor() as cursor:
-                    cursor.execute("SELECT 1")
-                logger.info("Database ping successful")
-                return  # Success - exit
-            except Exception as e:
-                error_msg = str(e)
-                if attempt < max_ping_retries - 1:
-                    wait_time = 2 * (attempt + 1)  # 2s, 4s
-                    logger.warning(f"Database ping attempt {attempt + 1}/{max_ping_retries} failed: {error_msg}. Retrying in {wait_time}s...")
-                    time.sleep(wait_time)
-                else:
-                    logger.error(f"Database ping failed after {max_ping_retries} attempts: {error_msg}")
-                    raise
+        
+        # If all retries exhausted, raise the last exception
+        if last_exception:
+            raise last_exception
+

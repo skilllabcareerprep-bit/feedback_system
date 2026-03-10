@@ -51,8 +51,8 @@ if config('DATABASE_URL', default=''):
     DATABASES = {
         'default': dj_database_url.config(
             default=config('DATABASE_URL'),
-            conn_max_age=600,  # CRITICAL: Keep connections alive on Render free tier
-            conn_health_checks=True,
+            conn_max_age=120,  # CRITICAL FIX: Reduce to 2 minutes for Render free tier SSL stability
+            conn_health_checks=False,  # CRITICAL FIX: Disable health checks that cause SSL reconnects
         )
     }
     # SSL configuration: Render PostgreSQL requires SSL
@@ -60,7 +60,8 @@ if config('DATABASE_URL', default=''):
         DATABASES['default']['OPTIONS'] = {}
     # Use sslmode='require' - Render database enforces SSL and rejects disable
     DATABASES['default']['OPTIONS']['sslmode'] = 'require'
-    DATABASES['default']['OPTIONS']['connect_timeout'] = 30
+    DATABASES['default']['OPTIONS']['connect_timeout'] = 10  # Reduce timeout for faster failure detection
+    DATABASES['default']['OPTIONS']['statement_timeout'] = '30000'  # 30 seconds per query
     # Ensure PORT is set correctly for Render
     DATABASES['default']['PORT'] = DATABASES['default'].get('PORT') or '5432'
 else:
