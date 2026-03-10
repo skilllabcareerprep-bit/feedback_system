@@ -6,7 +6,7 @@ import dj_database_url
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 SECRET_KEY = config('SECRET_KEY', default='your-secret-key-here')
-DEBUG = True  # TEMPORARY: diagnose 500 error
+DEBUG = False  # Production mode
 ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='localhost,127.0.0.1', cast=lambda v: [s.strip() for s in v.split(',')])
 
 INSTALLED_APPS = [
@@ -22,7 +22,7 @@ INSTALLED_APPS = [
 ]
 
 AUTHENTICATION_BACKENDS = [
-    'feedback.auth_backends.RetryAuthenticationBackend',
+    'django.contrib.auth.backends.ModelBackend',  # Use Django's default backend - no retry logic
 ]
 
 ROOT_URLCONF = 'training_feedback_system.urls'
@@ -51,8 +51,8 @@ if config('DATABASE_URL', default=''):
     DATABASES = {
         'default': dj_database_url.config(
             default=config('DATABASE_URL'),
-            conn_max_age=120,  # CRITICAL FIX: Reduce to 2 minutes for Render free tier SSL stability
-            conn_health_checks=False,  # CRITICAL FIX: Disable health checks that cause SSL reconnects
+            conn_max_age=30,  # ULTIMATE FIX: Recycle every 30sec to avoid free tier timeouts
+            conn_health_checks=False,
         )
     }
     # SSL configuration: Render PostgreSQL requires SSL
@@ -61,7 +61,7 @@ if config('DATABASE_URL', default=''):
     # CRITICAL FIX: Use 'prefer' instead of 'require' to allow non-SSL fallback on free tier
     # Render's free PostgreSQL drops SSL connections - prefer allows fallback to unencrypted connection
     DATABASES['default']['OPTIONS']['sslmode'] = 'prefer'
-    DATABASES['default']['OPTIONS']['connect_timeout'] = 10  # Reduce timeout for faster failure detection
+    DATABASES['default']['OPTIONS']['connect_timeout'] = 5  # Fail fast on free tier
     # Ensure PORT is set correctly for Render
     DATABASES['default']['PORT'] = DATABASES['default'].get('PORT') or '5432'
 else:
