@@ -77,11 +77,12 @@ if dj_database_url and config('DATABASE_URL', default=None):
             conn_health_checks=False,  # CRITICAL: Disable to avoid SSL reconnection issues
         )
     }
-    # SSL configuration: Allow fallback if SSL fails
+    # SSL configuration: Disable SSL for Render free tier reliability
     if 'OPTIONS' not in DATABASES['default']:
         DATABASES['default']['OPTIONS'] = {}
-    # Use 'prefer' to allow non-SSL fallback when hibernated database wakes up
-    DATABASES['default']['OPTIONS']['sslmode'] = 'prefer'
+    # Render's free PostgreSQL drops SSL connections unexpectedly
+    # Using 'disable' bypasses SSL requirement and avoids connection closures
+    DATABASES['default']['OPTIONS']['sslmode'] = 'disable'
     DATABASES['default']['OPTIONS']['connect_timeout'] = 10
 else:
     DATABASES = {
