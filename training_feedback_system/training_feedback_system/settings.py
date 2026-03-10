@@ -58,10 +58,9 @@ if config('DATABASE_URL', default=''):
     # SSL configuration: Render PostgreSQL requires SSL
     if 'OPTIONS' not in DATABASES['default']:
         DATABASES['default']['OPTIONS'] = {}
-    # AGGRESSIVE FIX: Disable SSL entirely for Render free tier reliability
-    # Render's free PostgreSQL drops SSL connections unexpectedly
-    # Using 'disable' bypasses SSL requirement and avoids connection closures
-    DATABASES['default']['OPTIONS']['sslmode'] = 'disable'
+    # FIX: Use 'require' mode - requires SSL but doesn't validate certificate
+    # This works reliably on Render free tier PostgreSQL
+    DATABASES['default']['OPTIONS']['sslmode'] = 'require'
     DATABASES['default']['OPTIONS']['connect_timeout'] = 10
     # Ensure PORT is set correctly for Render
     DATABASES['default']['PORT'] = DATABASES['default'].get('PORT') or '5432'

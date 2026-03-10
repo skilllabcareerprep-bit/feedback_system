@@ -77,12 +77,12 @@ if dj_database_url and config('DATABASE_URL', default=None):
             conn_health_checks=False,  # CRITICAL: Disable to avoid SSL reconnection issues
         )
     }
-    # SSL configuration: Disable SSL for Render free tier reliability
+    # SSL configuration: Render requires SSL connections
     if 'OPTIONS' not in DATABASES['default']:
         DATABASES['default']['OPTIONS'] = {}
-    # Render's free PostgreSQL drops SSL connections unexpectedly
-    # Using 'disable' bypasses SSL requirement and avoids connection closures
-    DATABASES['default']['OPTIONS']['sslmode'] = 'disable'
+    # FIX: Use 'require' mode - requires SSL but doesn't validate certificate
+    # This works reliably on Render free tier PostgreSQL
+    DATABASES['default']['OPTIONS']['sslmode'] = 'require'
     DATABASES['default']['OPTIONS']['connect_timeout'] = 10
 else:
     DATABASES = {
