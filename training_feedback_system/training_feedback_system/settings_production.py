@@ -73,8 +73,8 @@ if dj_database_url and config('DATABASE_URL', default=None):
     DATABASES = {
         'default': dj_database_url.config(
             default=config('DATABASE_URL'),
-            conn_max_age=30,  # Recycle connections every 30 seconds to prevent Render free tier timeouts
-            conn_health_checks=False,  # CRITICAL: Disable to avoid SSL reconnection issues
+            conn_max_age=0,  # CRITICAL: Disable pooling - Render kills idle connections
+            conn_health_checks=False,
         )
     }
     # SSL configuration: Render requires SSL connections

@@ -51,7 +51,7 @@ if config('DATABASE_URL', default=''):
     DATABASES = {
         'default': dj_database_url.config(
             default=config('DATABASE_URL'),
-            conn_max_age=30,  # ULTIMATE FIX: Recycle every 30sec to avoid free tier timeouts
+            conn_max_age=0,  # CRITICAL: Disable pooling - Render kills idle connections
             conn_health_checks=False,
         )
     }
