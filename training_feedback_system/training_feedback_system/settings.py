@@ -6,7 +6,7 @@ import dj_database_url
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 SECRET_KEY = config('SECRET_KEY', default='your-secret-key-here')
-DEBUG = True  # TEMPORARY: Enable to diagnose 500 errors
+DEBUG = False  # Production mode - SSL fallback fix deployed
 ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='localhost,127.0.0.1', cast=lambda v: [s.strip() for s in v.split(',')])
 
 INSTALLED_APPS = [
@@ -58,8 +58,9 @@ if config('DATABASE_URL', default=''):
     # SSL configuration: Render PostgreSQL requires SSL
     if 'OPTIONS' not in DATABASES['default']:
         DATABASES['default']['OPTIONS'] = {}
-    # Use sslmode='require' - Render database enforces SSL and rejects disable
-    DATABASES['default']['OPTIONS']['sslmode'] = 'require'
+    # CRITICAL FIX: Use 'prefer' instead of 'require' to allow non-SSL fallback on free tier
+    # Render's free PostgreSQL drops SSL connections - prefer allows fallback to unencrypted connection
+    DATABASES['default']['OPTIONS']['sslmode'] = 'prefer'
     DATABASES['default']['OPTIONS']['connect_timeout'] = 10  # Reduce timeout for faster failure detection
     # Ensure PORT is set correctly for Render
     DATABASES['default']['PORT'] = DATABASES['default'].get('PORT') or '5432'

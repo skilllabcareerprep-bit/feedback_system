@@ -22,8 +22,8 @@ class RetryAuthenticationBackend(ModelBackend):
     issues on free tier. Instead, relies on connection recycling via reduced CONN_MAX_AGE.
     """
     
-    MAX_RETRIES = 3  # Reduced from 5, since pinging is removed
-    RETRY_DELAYS = [0.5, 1, 1]  # Much shorter delays - fail fast approach
+    MAX_RETRIES = 5  # Increased for free tier stability
+    RETRY_DELAYS = [2, 3, 4, 5, 6]  # Much longer delays - give Render time to recover SSL
     
     def authenticate(self, request, username=None, password=None, **kwargs):
         """
