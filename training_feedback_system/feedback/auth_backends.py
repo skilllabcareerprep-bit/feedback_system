@@ -23,7 +23,7 @@ class RetryAuthenticationBackend(ModelBackend):
     """
     
     MAX_RETRIES = 3  # Reduced from 5, since pinging is removed
-    RETRY_DELAYS = [1, 2, 3]  # Quick succession retries
+    RETRY_DELAYS = [0.5, 1, 1]  # Much shorter delays - fail fast approach
     
     def authenticate(self, request, username=None, password=None, **kwargs):
         """
