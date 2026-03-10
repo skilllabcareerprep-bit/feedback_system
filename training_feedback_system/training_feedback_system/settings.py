@@ -61,7 +61,6 @@ if config('DATABASE_URL', default=''):
     # Use sslmode='require' - Render database enforces SSL and rejects disable
     DATABASES['default']['OPTIONS']['sslmode'] = 'require'
     DATABASES['default']['OPTIONS']['connect_timeout'] = 10  # Reduce timeout for faster failure detection
-    DATABASES['default']['OPTIONS']['statement_timeout'] = '30000'  # 30 seconds per query
     # Ensure PORT is set correctly for Render
     DATABASES['default']['PORT'] = DATABASES['default'].get('PORT') or '5432'
 else:
