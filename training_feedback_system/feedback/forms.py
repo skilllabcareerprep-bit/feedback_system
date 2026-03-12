@@ -67,6 +67,13 @@ class FeedbackForm(forms.ModelForm):
         label="8. Overall, the session was very good",
         help_text="Rate your overall satisfaction with the session"
     )
+    
+    # Hidden field for duplicate submission prevention
+    submission_token = forms.CharField(
+        required=False,
+        widget=forms.HiddenInput(),
+        help_text="Token for preventing duplicate submissions"
+    )
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -78,6 +85,8 @@ class FeedbackForm(forms.ModelForm):
                 Field('participant_name', css_class='mb-3'),
                 css_class='participant-info'
             ),
+            # Hidden submission token field
+            Field('submission_token', type='hidden'),
             HTML("<h3 class='mt-4 mb-3'>Rating Questions</h3>"),
             Div(
                 Field('rating_1', template='feedback/rating_template.html'),
@@ -104,7 +113,7 @@ class FeedbackForm(forms.ModelForm):
     class Meta:
         model = FeedbackResponse
         fields = [
-            'participant_name',
+            'participant_name', 'submission_token',
             'rating_1', 'rating_2', 'rating_3', 'rating_4',
             'rating_5', 'rating_6', 'rating_7', 'rating_8',
             'key_learnings', 'missing_elements'
@@ -114,6 +123,7 @@ class FeedbackForm(forms.ModelForm):
                 'placeholder': 'Enter your name (optional)',
                 'class': 'form-control'
             }),
+            'submission_token': forms.HiddenInput(),
             'key_learnings': forms.Textarea(attrs={
                 'rows': 4,
                 'placeholder': 'Please list the main things you learned during this session...',
@@ -129,6 +139,7 @@ class FeedbackForm(forms.ModelForm):
     def clean(self):
         cleaned_data = super().clean()
         try:
+            # Validate ratings (1-5)
             for i in range(1, 9):
                 rating_key = f'rating_{i}'
                 rating = cleaned_data.get(rating_key)
@@ -136,6 +147,12 @@ class FeedbackForm(forms.ModelForm):
                     self.add_error(rating_key, f'Rating {i} is required')
                 elif not (1 <= int(rating) <= 5):
                     self.add_error(rating_key, f'Rating for question {i} must be between 1 and 5')
+            
+            # Validate participant name (prevent XSS)
+            participant_name = cleaned_data.get('participant_name', '').strip()
+            if participant_name and len(participant_name) > 100:
+                self.add_error('participant_name', 'Participant name must be less than 100 characters')
+            
         except Exception as e:
             logger.error(f"Form validation error: {str(e)}")
             raise

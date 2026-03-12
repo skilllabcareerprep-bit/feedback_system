@@ -13,6 +13,8 @@ from django.contrib.auth.forms import PasswordChangeForm
 from django.contrib.auth import update_session_auth_hash
 
 import os
+import uuid
+import secrets
 
 # Update local imports to use relative imports
 from .models import TrainingSession, FeedbackResponse, Trainer, FeedbackReport, FeedbackImage
@@ -39,6 +41,75 @@ import logging
 
 # Configure logging
 logger = logging.getLogger(__name__)
+
+
+# ===== Utility Functions for Duplicate Prevention =====
+
+def get_client_ip(request):
+    """
+    Get the client's IP address from the request.
+    Handles proxy headers like X-Forwarded-For.
+    """
+    x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
+    if x_forwarded_for:
+        # X-Forwarded-For can contain multiple IPs, get the first one
+        ip = x_forwarded_for.split(',')[0].strip()
+    else:
+        ip = request.META.get('REMOTE_ADDR', '')
+    return ip
+
+
+def generate_submission_token():
+    """Generate a unique token for form submission tracking"""
+    return secrets.token_urlsafe(48)
+
+
+def check_existing_submission(session, ip_address, participant_name):
+    """
+    Check if an identical/duplicate submission exists for this session.
+    
+    Returns:
+        dict with 'exists' (bool) and 'message' (str)
+    """
+    from datetime import timedelta
+    
+    # Time window to check for duplicates (5 minutes)
+    time_window = timezone.now() - timedelta(minutes=5)
+    
+    # Check if same participant submitted within time window (for named participants)
+    if participant_name and participant_name != 'Anonymous':
+        existing = FeedbackResponse.objects.filter(
+            session=session,
+            participant_name=participant_name,
+            submitted_at__gte=time_window,
+            is_duplicate=False  # Don't count already marked duplicates
+        ).first()
+        
+        if existing:
+            return {
+                'exists': True,
+                'message': f'You have already submitted feedback for this session. Please wait before submitting again.',
+                'type': 'rate_limit'
+            }
+    
+    # Check if same IP address already submitted within time window
+    if ip_address:
+        existing = FeedbackResponse.objects.filter(
+            session=session,
+            ip_address=ip_address,
+            submitted_at__gte=time_window,
+            is_duplicate=False  # Don't count already marked duplicates
+        ).first()
+        
+        if existing:
+            return {
+                'exists': True,
+                'message': 'A submission from your device has already been recorded. Thank you!',
+                'type': 'duplicate'
+            }
+    
+    return {'exists': False, 'message': '', 'type': None}
+
 
 # Tesseract configuration - Load on first use only
 _tesseract_configured = False
@@ -832,27 +903,72 @@ def session_feedback(request, session_id):
     """
     Display a simple feedback form for a session and handle submission.
     Renders the unified feedback_form.html template with custom radio buttons.
+    
+    Implements duplicate submission prevention:
+    - Tracks IP addresses and participant names
+    - Prevents multiple submissions from same source within 5 minutes
+    - Marks suspicious submissions as duplicates without deleting data
     """
     from django.shortcuts import get_object_or_404, redirect, render
     from django.contrib import messages
+    
     session = get_object_or_404(TrainingSession, id=session_id, is_active=True)
+    
     if request.method == 'POST':
+        # Get client IP address for duplicate tracking
+        client_ip = get_client_ip(request)
+        
+        # Check for existing submissions before processing form
+        duplicate_check = check_existing_submission(
+            session=session,
+            ip_address=client_ip,
+            participant_name=request.POST.get('participant_name', '').strip()
+        )
+        
+        if duplicate_check['exists']:
+            messages.warning(request, duplicate_check['message'])
+            # Redirect back to the form instead of rejecting
+            return redirect('feedback:session_feedback', session_id=session_id)
+        
         form = FeedbackForm(request.POST)
         form = set_rating_labels(form)
+        
         if form.is_valid():
-            feedback = form.save(commit=False)
-            feedback.session = session
-            feedback.save()
-            return render(request, 'feedback/feedback_success_public.html', {
-                'session': session
-            })
+            try:
+                feedback = form.save(commit=False)
+                feedback.session = session
+                feedback.ip_address = client_ip
+                # Generate submission token to prevent double-submit from same form
+                feedback.submission_token = generate_submission_token()
+                
+                # Save will trigger clean() which will check for duplicates
+                feedback.save()
+                
+                logger.info(
+                    f"Feedback submitted for session {session_id} by {feedback.participant_name} "
+                    f"from IP {client_ip}"
+                )
+                
+                return render(request, 'feedback/feedback_success_public.html', {
+                    'session': session
+                })
+            except Exception as e:
+                logger.error(f"Error saving feedback: {str(e)}")
+                messages.error(
+                    request, 
+                    'An error occurred while saving your feedback. Please try again.'
+                )
         else:
             messages.error(request, 'Please correct the errors below.')
     else:
-        form = FeedbackForm(initial={'session': session.id})
+        form = FeedbackForm(initial={
+            'session': session.id,
+            'submission_token': generate_submission_token()
+        })
         form = set_rating_labels(form)
+    
     rating_field_names = [f'rating_{i}' for i in range(1, 9)]
-    # Always render the unified feedback_form.html for consistent radio button UI
+    
     return render(request, 'feedback/feedback_form.html', {
         'feedback_form': form,
         'session': session,

@@ -363,7 +363,88 @@
 </div>
 
 <script>
-// Keyboard navigation for radio buttons
+// ===== DUPLICATE SUBMISSION PREVENTION =====
+// This script prevents accidental double-submissions by:
+// 1. Disabling the submit button after first click
+// 2. Showing visual feedback to user
+// 3. Preventing form resubmission through multiple mechanisms
+
+(function() {
+  const form = document.querySelector('form');
+  const submitBtn = document.getElementById('submitBtn');
+  let isSubmitting = false;
+
+  if (form && submitBtn) {
+    // Prevent form submission if already submitting
+    form.addEventListener('submit', function(e) {
+      if (isSubmitting) {
+        e.preventDefault();
+        console.warn('Form submission already in progress. Please wait...');
+        return false;
+      }
+
+      // Mark as submitting
+      isSubmitting = true;
+      submitBtn.disabled = true;
+      submitBtn.setAttribute('aria-busy', 'true');
+      
+      // Store original button text and show loading state
+      const originalText = submitBtn.textContent;
+      submitBtn.textContent = 'Submitting... Please wait';
+      submitBtn.style.opacity = '0.7';
+      submitBtn.style.cursor = 'not-allowed';
+      
+      // Add a timeout to reset in case of network error (30 seconds)
+      setTimeout(() => {
+        if (isSubmitting) {
+          isSubmitting = false;
+          submitBtn.disabled = false;
+          submitBtn.removeAttribute('aria-busy');
+          submitBtn.textContent = originalText;
+          submitBtn.style.opacity = '1';
+          submitBtn.style.cursor = 'pointer';
+          console.warn('Form submission timeout - reset allowed');
+        }
+      }, 30000);
+    });
+
+    // Prevent accidental re-submission via keyboard (Ctrl+Enter, Cmd+Enter)
+    form.addEventListener('keydown', function(e) {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+        e.preventDefault();
+        if (!isSubmitting) {
+          submitBtn.click();
+        }
+      }
+    });
+
+    // Prevent multiple clicks on submit button
+    submitBtn.addEventListener('click', function(e) {
+      if (isSubmitting) {
+        e.preventDefault();
+        e.stopPropagation();
+        return false;
+      }
+    });
+
+    // Page unload warning if form was modified but not submitted
+    let formModified = false;
+    form.addEventListener('change', function() {
+      formModified = true;
+    });
+    
+    window.addEventListener('beforeunload', function(e) {
+      if (formModified && !isSubmitting) {
+        e.preventDefault();
+        e.returnValue = '';
+        return '';
+      }
+    });
+  }
+})();
+
+// ===== KEYBOARD NAVIGATION FOR ACCESSIBILITY =====
+// Original keyboard navigation for radio button groups
 document.querySelectorAll('.rating-radio-group').forEach(group => {
   const buttons = group.querySelectorAll('.rating-radio-label');
   

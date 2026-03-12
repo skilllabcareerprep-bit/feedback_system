@@ -117,9 +117,28 @@ class FeedbackResponse(models.Model):
     # Meta
     submitted_at = models.DateTimeField(auto_now_add=True)
     ip_address = models.GenericIPAddressField(blank=True, null=True)
+    
+    # Duplicate Prevention Fields
+    # submission_token: Unique token to prevent double-submit from the same form
+    # Prevents accidental resubmits from the same form instance
+    submission_token = models.CharField(
+        max_length=64, 
+        blank=True, 
+        null=True,
+        unique=True,
+        db_index=True,
+        help_text="Unique token to prevent duplicate submissions"
+    )
+    # is_duplicate: Flag to mark submitted records that are likely duplicates
+    # Does not delete duplicate data, just marks them for review
+    is_duplicate = models.BooleanField(
+        default=False,
+        db_index=True,
+        help_text="Whether this is marked as a potential duplicate submission"
+    )
 
     def clean(self):
-        """Validate feedback response data"""
+        """Validate feedback response data and check for duplicates"""
         try:
             for i in range(1, 9):
                 rating = getattr(self, f'rating_{i}')
@@ -127,9 +146,76 @@ class FeedbackResponse(models.Model):
                     raise ValidationError(f'Rating {i} is required')
                 if not (1 <= rating <= 5):
                     raise ValidationError(f'Rating {i} must be between 1 and 5')
+            
+            # Check for duplicate submissions (skip if already marked as duplicate)
+            if not self.is_duplicate and not self.pk:  # Only check on new submissions
+                duplicate_check = self.check_for_duplicate_submission()
+                if duplicate_check['is_duplicate']:
+                    self.is_duplicate = True
+                    logger.warning(
+                        f"Potential duplicate submission detected for session {self.session_id} "
+                        f"from {self.ip_address}: {duplicate_check['reason']}"
+                    )
+        except ValidationError:
+            raise
         except Exception as e:
             logger.error(f"Validation error in FeedbackResponse: {str(e)}")
             raise
+
+    def check_for_duplicate_submission(self):
+        """
+        Check if this submission appears to be a duplicate.
+        Returns a dict with 'is_duplicate' boolean and 'reason' string.
+        
+        A submission is considered a duplicate if:
+        1. Same participant_name submitted to same session within 5 minutes
+        2. Same IP address submitted identical ratings to same session within 5 minutes
+        """
+        from django.utils import timezone
+        from datetime import timedelta
+        
+        # Time window to check for duplicates (5 minutes)
+        time_window = timezone.now() - timedelta(minutes=5)
+        
+        # Check 1: Same participant and session within time window
+        if self.participant_name and self.participant_name != 'Anonymous':
+            existing = FeedbackResponse.objects.filter(
+                session=self.session,
+                participant_name=self.participant_name,
+                submitted_at__gte=time_window,
+                is_duplicate=False  # Don't count already marked duplicates
+            ).exists()
+            
+            if existing:
+                return {
+                    'is_duplicate': True,
+                    'reason': f'Submission from participant "{self.participant_name}" already exists within 5 minutes'
+                }
+        
+        # Check 2: Same IP address with identical ratings within time window
+        if self.ip_address:
+            identical_submission = FeedbackResponse.objects.filter(
+                session=self.session,
+                ip_address=self.ip_address,
+                rating_1=self.rating_1,
+                rating_2=self.rating_2,
+                rating_3=self.rating_3,
+                rating_4=self.rating_4,
+                rating_5=self.rating_5,
+                rating_6=self.rating_6,
+                rating_7=self.rating_7,
+                rating_8=self.rating_8,
+                submitted_at__gte=time_window,
+                is_duplicate=False  # Don't count already marked duplicates
+            ).exists()
+            
+            if identical_submission:
+                return {
+                    'is_duplicate': True,
+                    'reason': f'Identical submission from IP {self.ip_address} already exists within 5 minutes'
+                }
+        
+        return {'is_duplicate': False, 'reason': ''}
 
     def save(self, *args, **kwargs):
         self.clean()
@@ -147,6 +233,12 @@ class FeedbackResponse(models.Model):
 
     class Meta:
         ordering = ['-submitted_at']
+        # Prevent multiple non-duplicate submissions from the same IP in the same session
+        # This allows one submission per IP address per session
+        indexes = [
+            models.Index(fields=['session', 'ip_address', 'is_duplicate']),
+            models.Index(fields=['submitted_at', 'session']),
+        ]
 
 class FeedbackReport(models.Model):
     session = models.OneToOneField(TrainingSession, on_delete=models.CASCADE)
