@@ -4,7 +4,7 @@ services:
     env: python
     plan: free
     buildCommand: pip install -r requirements.txt && python training_feedback_system/manage.py collectstatic --noinput
-    startCommand: python migrate_with_retry.py && gunicorn --chdir training_feedback_system training_feedback_system.wsgi:application --workers 1 --timeout 120
+    startCommand: python migrate_with_retry.py && gunicorn --chdir training_feedback_system --bind 0.0.0.0:$PORT training_feedback_system.wsgi:application --workers 1 --timeout 120
     envVars:
       - key: DEBUG
         value: "False"
