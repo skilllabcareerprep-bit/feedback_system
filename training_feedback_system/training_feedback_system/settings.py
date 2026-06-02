@@ -134,6 +134,16 @@ CACHES = {
     }
 }
 
+# Use cookie-based sessions to avoid DB session dependency on every request
+SESSION_ENGINE = 'django.contrib.sessions.backends.signed_cookies'
+SESSION_COOKIE_SECURE = True
+CSRF_COOKIE_SECURE = True
+SESSION_COOKIE_SAMESITE = 'Lax'
+CSRF_COOKIE_SAMESITE = 'Lax'
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+SECURE_SSL_REDIRECT = True
+SESSION_COOKIE_HTTPONLY = True
+
 # Rate limiting
 RATELIMIT_ENABLE = True
 RATELIMIT_USE_CACHE = 'default'
