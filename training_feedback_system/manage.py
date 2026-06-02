@@ -14,8 +14,14 @@ def main():
     sys.path.insert(0, str(project_root))
 
     if len(sys.argv) > 1 and sys.argv[1] == 'migrate':
-        if os.getenv('SKIP_MIGRATE', '0') == '1':
-            print('SKIP_MIGRATE=1 set; skipping database migration step.')
+        skip_migrate = os.getenv('SKIP_MIGRATE')
+        running_on_render = any(
+            os.getenv(name)
+            for name in ('RENDER_SERVICE_ID', 'RENDER_DEPLOYMENT_ID', 'RENDER_INTERNAL_HOSTNAME')
+        )
+
+        if skip_migrate == '1' or (running_on_render and skip_migrate != '0'):
+            print('Render detected; skipping migrate step on startup. Set SKIP_MIGRATE=0 to run migrations explicitly.')
             return
 
         try:
