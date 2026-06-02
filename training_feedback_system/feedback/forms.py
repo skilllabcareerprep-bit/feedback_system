@@ -3,7 +3,7 @@ from django.core.exceptions import ValidationError
 from django.utils import timezone
 from crispy_forms.helper import FormHelper
 from crispy_forms.layout import Layout, Submit, Field, Div, HTML
-from .models import FeedbackResponse, Trainer, TrainingSession, FeedbackImage, Feedback
+from .models import FeedbackResponse, Trainer, TrainingSession
 import logging
 from django.contrib.auth.forms import AuthenticationForm
 from django.contrib.auth.models import User
@@ -243,15 +243,6 @@ class TrainingSessionForm(forms.ModelForm):
                 css_class='form-actions'
             )
         )
-
-class FeedbackImageUploadForm(forms.Form):
-    image_file = forms.ImageField(label='Upload Feedback Form Image')
-    session = forms.ModelChoiceField(queryset=TrainingSession.objects.all(), label='Session')
-
-class FeedbackImageForm(forms.ModelForm):
-    class Meta:
-        model = FeedbackImage
-        fields = ['image']
 
 class GmailAuthenticationForm(AuthenticationForm):
     username = forms.EmailField(label='Gmail', max_length=254, widget=forms.EmailInput(attrs={'autofocus': True}))

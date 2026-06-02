@@ -254,26 +254,6 @@ class FeedbackReport(models.Model):
     class Meta:
         ordering = ['-generated_at']
 
-class FeedbackImage(models.Model):
-    # The 'id' field is automatically created by Django as the primary key.
-    # If you see errors about 'id', ensure migrations are applied:
-    #   python manage.py makemigrations && python manage.py migrate
-    image = models.ImageField(upload_to='feedback_images/')
-    uploaded_at = models.DateTimeField(auto_now_add=True)
-    # Detected ratings
-    rating_1 = models.IntegerField(null=True, blank=True)
-    rating_2 = models.IntegerField(null=True, blank=True)
-    rating_3 = models.IntegerField(null=True, blank=True)
-    rating_4 = models.IntegerField(null=True, blank=True)
-    rating_5 = models.IntegerField(null=True, blank=True)
-    rating_6 = models.IntegerField(null=True, blank=True)
-    rating_7 = models.IntegerField(null=True, blank=True)
-    rating_8 = models.IntegerField(null=True, blank=True)
-    ocr_text = models.TextField(blank=True)
-
-    def __str__(self):
-        return f"FeedbackImage {getattr(self, 'id', 'unknown')}"
-
 class Feedback(models.Model):
     session = models.ForeignKey('TrainingSession', on_delete=models.CASCADE, null=True, blank=True, related_name='feedbacks')
     participant_name = models.CharField(max_length=100, blank=True)

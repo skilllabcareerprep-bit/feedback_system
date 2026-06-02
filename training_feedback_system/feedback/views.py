@@ -17,8 +17,7 @@ import uuid
 import secrets
 
 # Update local imports to use relative imports
-from .models import TrainingSession, FeedbackResponse, Trainer, FeedbackReport, FeedbackImage
-from .rating_detector import AdvancedRatingDetector
+from .models import TrainingSession, FeedbackResponse, Trainer, FeedbackReport
 
 # Standard library imports - Load these immediately
 import json
@@ -30,14 +29,7 @@ from io import BytesIO
 import traceback
 import logging
 
-# Heavy imports to be lazy-loaded:
-# - cv2 (opencv-python)
-# - pytesseract
-# - qrcode
-# - numpy, pandas
-# - PIL
-# - seaborn, matplotlib
-# These will be imported inside the functions that use them
+# Heavy imports are loaded lazily inside the functions that still require them.
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -110,33 +102,6 @@ def check_existing_submission(session, ip_address, participant_name):
     
     return {'exists': False, 'message': '', 'type': None}
 
-
-# Tesseract configuration - Load on first use only
-_tesseract_configured = False
-
-def configure_tesseract():
-    """Configure Tesseract OCR path - loads pytesseract only when needed"""
-    global _tesseract_configured
-    if _tesseract_configured:
-        return
-    
-    try:
-        import pytesseract
-        import shutil
-        tesseract_path = shutil.which('tesseract')
-        if tesseract_path:
-            pytesseract.pytesseract.tesseract_cmd = tesseract_path
-        else:
-            # Default Windows path - adjust if needed
-            windows_path = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
-            if os.path.exists(windows_path):
-                pytesseract.pytesseract.tesseract_cmd = windows_path
-            # Don't raise error - Tesseract is optional on production
-    except Exception as e:
-        # Tesseract OCR is optional - log warning but don't fail
-        logger.warning(f"Tesseract-OCR not configured: {e}")
-    
-    _tesseract_configured = True
 
 # --- Remove minimal admin authentication system ---
 # Removed: is_admin_authenticated, custom session logic, and old admin_required
@@ -450,46 +415,6 @@ def download_report(request, session_id):
     return response
 
 @admin_required
-def download_feedback_qr(request, session_id):
-    """
-    Download a QR code for the feedback form of a session.
-
-    Args:
-        request (HttpRequest): The HTTP request object.
-        session_id (int): The ID of the training session.
-
-    Returns:
-        FileResponse: PNG image file of the QR code.
-    """
-    from io import BytesIO
-    import qrcode
-    from qrcode.constants import ERROR_CORRECT_L
-    
-    session = get_object_or_404(TrainingSession, id=session_id)
-    try:
-        feedback_url = request.build_absolute_uri(
-            f"/sessions/{getattr(session, 'id', None)}/feedback/"
-        )
-        qr = qrcode.QRCode(
-            version=1,
-            error_correction=ERROR_CORRECT_L,
-            box_size=10,
-            border=4
-        )
-        qr.add_data(feedback_url)
-        qr.make(fit=True)
-        img = qr.make_image(fill_color="black", back_color="white")
-        buf = BytesIO()
-        img.save(buf)
-        buf.seek(0)
-        filename = f"feedback_session_{getattr(session, 'id', 'unknown')}_qr.png"
-        response = FileResponse(buf, as_attachment=True, filename=filename)
-        return response
-    except Exception as e:
-        messages.error(request, f'Error generating QR code: {str(e)}')
-        return redirect('feedback:session_detail', session_id=getattr(session, 'id', None))
-
-@admin_required
 def delete_session(request, session_id):
     """
     Delete a training session after confirmation.
@@ -572,109 +497,6 @@ def feedback_summary(request):
         'page_obj': page_obj,
     })
 
-# Add proper error handling to upload_feedback_image
-@ensure_csrf_cookie
-def upload_feedback_image(request):
-    """
-    Handle feedback form image upload, process the image, and extract ratings using the AdvancedRatingDetector.
-
-    Args:
-        request (HttpRequest): The HTTP request object.
-
-    Returns:
-        JsonResponse: JSON response with extracted feedback, visualization, and debug info.
-    """
-    debug_info = {
-        'request_method': request.method,
-        'content_type': request.content_type,
-        'has_file': 'image_file' in request.FILES,
-        'session_id': request.POST.get('session'),
-    }
-
-    if request.method == 'GET':
-        from .forms import FeedbackImageUploadForm
-        form = FeedbackImageUploadForm()
-        return render(request, 'feedback/upload_feedback_image.html', {'form': form})
-
-    if request.method != 'POST':
-        return JsonResponse({
-            'success': False,
-            'error': f'Method {request.method} not allowed',
-            'debug_info': debug_info
-        })
-
-    tmp_path = None
-    try:
-        import cv2
-        import numpy as np
-        
-        session_id = request.POST.get('session')
-        if not session_id or not session_id.isdigit():
-            raise ValueError('Please select a valid session.')
-
-        session = get_object_or_404(TrainingSession, id=session_id)
-        image_file = request.FILES.get('image_file')
-        
-        if not image_file:
-            raise ValueError('No image file received.')
-
-        # Validate file size and type
-        if image_file.size > settings.MAX_UPLOAD_SIZE:
-            raise ValueError('File size too large.')
-            
-        if not image_file.content_type.startswith('image/'):
-            raise ValueError('Invalid file type.')
-
-        with tempfile.NamedTemporaryFile(suffix='.jpg', delete=False) as tmp:
-            for chunk in image_file.chunks():
-                tmp.write(chunk)
-            tmp_path = tmp.name
-
-        img = cv2.imread(tmp_path)
-        if img is None:
-            raise ValueError('Failed to read image file')
-
-        detector = AdvancedRatingDetector()
-        ratings, detection_debug = detector.detect_ratings(img)
-
-        feedback_data = process_feedback_data(ratings)
-        viz_img = detector.visualize_detections(img, ratings)
-        viz_base64 = convert_image_to_base64(viz_img)
-        
-        confidence_stats = calculate_confidence_stats(ratings)
-
-        return JsonResponse({
-            'success': True,
-            'feedback': feedback_data,
-            'visualization': viz_base64,
-            'debug_info': {
-                **debug_info,
-                'image_size': img.shape if img is not None else 'unknown',
-                'detection_info': detection_debug,
-                'ratings_summary': confidence_stats
-            }
-        })
-
-    except ValueError as ve:
-        return JsonResponse({
-            'success': False,
-            'error': str(ve),
-            'debug_info': debug_info
-        })
-    except Exception as e:
-        logger.error(f"Error processing image: {str(e)}", exc_info=True)
-        return JsonResponse({
-            'success': False,
-            'error': 'An error occurred while processing the image.',
-            'debug_info': debug_info
-        })
-    finally:
-        if tmp_path and os.path.exists(tmp_path):
-            try:
-                os.remove(tmp_path)
-            except Exception as e:
-                logger.error(f"Error removing temp file: {str(e)}")
-
 def safe_int(val):
     try:
         return int(val)
@@ -690,104 +512,11 @@ def generate_chart_data(analysis):
         }
     return chart_data
 
-def process_feedback_data(ratings):
-    FEEDBACK_QUESTIONS = [
-        "The training met my expectations",
-        "I will be able to apply the knowledge learned",
-        "The content was organized and easy to follow",
-        "The trainer was knowledgeable",
-        "Training was relevant to my needs",
-        "Instructions were clear and understandable",
-        "Length and timing of training was sufficient",
-        "Overall, the session was very good"
-    ]
-    
-    feedback_data = []
-    for row in range(8):
-        row_rating = next((r for r in ratings if r['row'] == row), None)
-        rating = row_rating['rating'] if row_rating else 0
-        confidence = row_rating['confidence'] if row_rating else 0
-        question = FEEDBACK_QUESTIONS[row] if row < len(FEEDBACK_QUESTIONS) else f"Question {row + 1}"
-        feedback_data.append({
-            'question': question,
-            'rating': rating,
-            'confidence': confidence
-        })
-    return feedback_data
-
-def convert_image_to_base64(image):
-    _, buffer = cv2.imencode('.jpg', image)
-    return base64.b64encode(buffer).decode('utf-8')
-
-def calculate_confidence_stats(ratings):
-    confidence_scores = [r['confidence'] for r in ratings]
-    return {
-        'total_detected': len(ratings),
-        'confidence_min': min(confidence_scores) if confidence_scores else 0,
-        'confidence_max': max(confidence_scores) if confidence_scores else 0,
-        'confidence_avg': np.mean(confidence_scores) if confidence_scores else 0
-    }
-
-# Robust ERROR_CORRECT_L import and fallback
-try:
-    from qrcode.constants import ERROR_CORRECT_L
-    QR_ERROR_CORRECT_L = ERROR_CORRECT_L
-except ImportError:
-    QR_ERROR_CORRECT_L = 1  # fallback to default value for error correction
-
-from .forms import FeedbackForm, TrainerForm, TrainingSessionForm, GmailAuthenticationForm, FeedbackImageUploadForm, FeedbackImageForm
+from .forms import FeedbackForm, TrainerForm, TrainingSessionForm, GmailAuthenticationForm
 from django.core.exceptions import ValidationError
 from django.db import transaction
 from django.db.models import Count, Avg, F
 from django.core.cache import cache
-
-import pytesseract
-from PIL import Image
-import cv2
-import numpy as np
-from .models import FeedbackImage
-
-def detect_ratings_from_image(image_path):
-    img = cv2.imread(image_path)
-    gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-    _, thresh = cv2.threshold(gray, 150, 255, cv2.THRESH_BINARY)
-    pil_img = Image.fromarray(thresh)
-    text = pytesseract.image_to_string(pil_img)
-    import re
-    ratings = {}
-    for i in range(1, 9):
-        pattern = rf"{i}\.\s.*?([5-1])"
-        match = re.search(pattern, text)
-        if match:
-            ratings[f'rating_{i}'] = int(match.group(1))
-        else:
-            ratings[f'rating_{i}'] = None
-    return ratings, text
-
-def upload_feedback_image_legacy(request):
-    """
-    [LEGACY] Handle feedback form image upload, process the image, and extract ratings using the legacy method.
-    Use 'upload_feedback_image' for the new AJAX/JSON-based upload.
-    """
-    if request.method == 'POST':
-        form = FeedbackImageForm(request.POST, request.FILES)
-        if form.is_valid():
-            feedback_image = form.save()
-            img_path = feedback_image.image.path
-            ratings, ocr_text = detect_ratings_from_image(img_path)
-            feedback_image.ocr_text = ocr_text
-            for key, value in ratings.items():
-                setattr(feedback_image, key, value)
-            feedback_image.save()
-            return render(request, 'feedback/upload_feedback_image.html', {
-                'form': FeedbackImageForm(),
-                'feedback_image': feedback_image,
-                'ratings': ratings,
-                'ocr_text': ocr_text,
-            })
-    else:
-        form = FeedbackImageForm()
-    return render(request, 'feedback/upload_feedback_image.html', {'form': form})
 
 @admin_required
 def delete_trainer(request, trainer_id):

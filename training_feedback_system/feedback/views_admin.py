@@ -40,5 +40,3 @@ def edit_trainer(request, trainer_id):
         form = TrainerForm(instance=trainer)
     return render(request, 'feedback/edit_trainer.html', {'form': form, 'trainer': trainer})
 
-def upload_feedback_image(request):
-    return render(request, 'feedback/upload_feedback_image.html')

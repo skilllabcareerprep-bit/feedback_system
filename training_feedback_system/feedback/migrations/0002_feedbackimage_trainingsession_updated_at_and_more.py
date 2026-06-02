@@ -11,23 +11,6 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        migrations.CreateModel(
-            name='FeedbackImage',
-            fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('image', models.ImageField(upload_to='feedback_images/')),
-                ('uploaded_at', models.DateTimeField(auto_now_add=True)),
-                ('rating_1', models.IntegerField(blank=True, null=True)),
-                ('rating_2', models.IntegerField(blank=True, null=True)),
-                ('rating_3', models.IntegerField(blank=True, null=True)),
-                ('rating_4', models.IntegerField(blank=True, null=True)),
-                ('rating_5', models.IntegerField(blank=True, null=True)),
-                ('rating_6', models.IntegerField(blank=True, null=True)),
-                ('rating_7', models.IntegerField(blank=True, null=True)),
-                ('rating_8', models.IntegerField(blank=True, null=True)),
-                ('ocr_text', models.TextField(blank=True)),
-            ],
-        ),
         migrations.AddField(
             model_name='trainingsession',
             name='updated_at',

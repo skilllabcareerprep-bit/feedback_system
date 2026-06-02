@@ -72,9 +72,6 @@
     </div>
 
     <a href="{% url 'feedback:generate_report' session.id %}" class="btn btn-success mt-3">Generate Report</a>
-    <a href="{% url 'feedback:download_feedback_qr' session.id %}" class="btn btn-secondary mt-3 ms-2">
-        <i class="fas fa-qrcode"></i> Download Feedback QR
-    </a>
     <a href="{% url 'feedback:session_report_email' session.id %}" class="btn btn-info mt-3 ms-2">
         <i class="fas fa-envelope"></i> Generate Report Email
     </a>
