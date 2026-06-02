@@ -62,13 +62,8 @@
     </div>
 
     <h4>Session Analytics</h4>
-    <div class="row">
-      {% for category, img_url in category_image_pairs %}
-        <div class="col-md-6 mb-4">
-          <h5>{{ category }}</h5>
-          <img src="{{ img_url }}" alt="Feedback Chart for {{ category }}" class="img-fluid" style="border:1px solid #ccc; background:#fff; padding:10px;">
-        </div>
-      {% endfor %}
+    <div class="alert alert-warning" role="alert">
+      Chart rendering is disabled in this deployment to conserve memory.
     </div>
 
     <a href="{% url 'feedback:generate_report' session.id %}" class="btn btn-success mt-3">Generate Report</a>

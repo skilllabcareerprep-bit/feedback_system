@@ -1,4 +1,3 @@
-import openai
 from django.conf import settings
 from io import BytesIO
 import base64
@@ -12,83 +11,11 @@ from typing import Dict, List, Optional
 import warnings
 warnings.filterwarnings('ignore')
 
-# Configure OpenAI (lazy load if needed)
-_openai_configured = False
-
-def _ensure_openai_configured():
-    global _openai_configured
-    if not _openai_configured:
-        openai.api_key = settings.OPENAI_API_KEY
-        _openai_configured = True
-
 def analyze_feedback_with_openai(feedback_responses):
     """
-    Analyze feedback responses using OpenAI API
+    Placeholder feedback analysis function for low-memory deployments.
     """
-    _ensure_openai_configured()
-    
-    if not openai.api_key:
-        return "OpenAI API key not configured"
-
-    # Prepare feedback text for analysis
-    feedback_texts = []
-    for response in feedback_responses:
-        feedback_text = f"""
-        Key Learnings: {response.key_learnings}
-        Missing Elements: {response.missing_elements or 'None mentioned'}
-        Average Rating: {response.get_average_rating()}/5.0
-        """
-        feedback_texts.append(feedback_text)
-
-    combined_feedback = "\n---\n".join(feedback_texts)
-
-    prompt = f"""You are a qualitative feedback analyst for a training organization. You are given feedback entries from learners about a training session.
-
-Your task is to analyze the feedback and generate a response using only the two sections listed below:
-
-1. Overall Summary: Provide a concise, high-level view of the session, highlighting strengths and overall experience. Format this as bullet points (3-5 bullets).
-
-2. Areas of Improvement: Provide opportunities to enhance effectiveness, learner engagement, or clarity, framed as suggestions for future refinement. Format this as bullet points (3-5 bullets).
-
-Guidelines:
-
-1. The tone must be positive, encouraging, and constructive at all times.
-
-2. Avoid negative wording or critical language; reframe all challenges as opportunities for growth or enhancement.
-
-3. Even when feedback is critical, present it using soft, supportive, and forward-looking language.
-
-4. Each bullet point should be concise but meaningful (1-2 sentences max per bullet).
-
-5. Do not mention sentiment labels (e.g., negative or mixed); instead, naturally reflect balance within the wording.
-
-6. Format each section's content as a bulleted list with dashes (- bullet point text).
-
-Output ONLY a JSON object with two keys: "overall_summary" and "areas_of_improvement". Each value should contain the respective analysis content formatted as bulleted lists.
-
-Example output format:
-{{"overall_summary": "- Bullet point 1\\n- Bullet point 2\\n- Bullet point 3", "areas_of_improvement": "- Bullet point 1\\n- Bullet point 2\\n- Bullet point 3"}}
-
-Input feedback:
----
-{combined_feedback}
----
-
-Output only the JSON object, no additional text:"""
-
-    try:
-        client = openai.OpenAI(api_key=getattr(settings, 'OPENAI_API_KEY', None))
-        response = client.chat.completions.create(
-            model="gpt-3.5-turbo",
-            messages=[
-                {"role": "user", "content": prompt}
-            ],
-            max_tokens=1500,
-            temperature=0.7
-        )
-        return response.choices[0].message.content
-    except Exception as e:
-        return f"Error analyzing feedback: {str(e)}"
+    return "OpenAI analysis unavailable in this deployment."
 
 def create_rating_chart(feedback_responses, statement_text, statement_number):
     """

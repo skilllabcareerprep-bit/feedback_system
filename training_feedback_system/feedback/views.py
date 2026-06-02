@@ -245,8 +245,6 @@ def session_detail(request, session_id):
     Returns:
         HttpResponse: Rendered HTML page with session details.
     """
-    from .utils import create_rating_chart
-    
     session = get_object_or_404(TrainingSession, id=session_id)
     feedback_responses = FeedbackResponse.objects.filter(session=session)
     response_count = feedback_responses.count()
@@ -261,10 +259,7 @@ def session_detail(request, session_id):
         "Length and timing of training was sufficient",
         "Overall, the session was very good"
     ]
-    category_image_pairs = []
-    for i, question in enumerate(FEEDBACK_QUESTIONS, start=1):
-        img_url = create_rating_chart(feedback_responses, question, i)
-        category_image_pairs.append((question, img_url))
+    category_image_pairs = []  # Chart rendering disabled in this low-memory deployment
 
     SENTIMENT_LABELS = ['Strongly Agree', 'Agree', 'Neutral', 'Disagree', 'Strongly Disagree']
     # Build a matrix: sentiment as rows, questions as columns
@@ -393,26 +388,13 @@ def generate_report(request, session_id):
 @admin_required
 def download_report(request, session_id):
     """
-    Download a report for a session (not implemented).
+    Download a report for a session.
 
-    Args:
-        request (HttpRequest): The HTTP request object.
-        session_id (int): The ID of the training session.
-
-    Returns:
-        HttpResponse: Plain text response for download.
+    This deployment is running in a low-memory environment, so report generation is disabled.
     """
-    from .utils import generate_word_report, analyze_feedback_with_openai
-    
     session = get_object_or_404(TrainingSession, id=session_id)
-    feedback_responses = session.feedbackresponse_set.all()
-    # Optionally run AI analysis (can be skipped or cached)
-    ai_analysis = analyze_feedback_with_openai(feedback_responses)
-    report_path, report_filename = generate_word_report(session, feedback_responses, ai_analysis)
-    if not os.path.exists(report_path):
-        return HttpResponse('Report generation failed.', content_type='text/plain')
-    response = FileResponse(open(report_path, 'rb'), as_attachment=True, filename=report_filename)
-    return response
+    messages.warning(request, 'Report download is unavailable in the current deployment due to memory limits.')
+    return redirect('feedback:session_detail', session_id=session_id)
 
 @admin_required
 def delete_session(request, session_id):
@@ -551,63 +533,13 @@ def toggle_session_active(request, session_id):
 @admin_required
 def download_charts(request, session_id):
     """
-    Download charts for session feedback as a ZIP file.
+    Download charts for session feedback.
 
-    Args:
-        request (HttpRequest): The HTTP request object.
-        session_id (int): The ID of the training session.
-
-    Returns:
-        HttpResponse: ZIP file download response.
+    This deployment is running in a low-memory environment, so chart generation is disabled.
     """
-    import zipfile
-    from io import BytesIO
-    from .utils import create_rating_chart
     session = get_object_or_404(TrainingSession, id=session_id)
-    feedback_responses = FeedbackResponse.objects.filter(session=session)
-    FEEDBACK_QUESTIONS = [
-        "The training met my expectations",
-        "I will be able to apply the knowledge learned",
-        "The content was organized and easy to follow",
-        "The trainer was knowledgeable",
-        "Training was relevant to my needs",
-        "Instructions were clear and understandable",
-        "Length and timing of training was sufficient",
-        "Overall, the session was very good"
-    ]
-    zip_buffer = BytesIO()
-    with zipfile.ZipFile(zip_buffer, 'w') as zip_file:
-        for i, question in enumerate(FEEDBACK_QUESTIONS, start=1):
-            # Generate chart as raw PNG bytes
-            from io import BytesIO
-            import base64
-            import matplotlib.pyplot as plt
-            ratings = []
-            for response in feedback_responses:
-                rating_value = getattr(response, f'rating_{i}')
-                ratings.append(rating_value)
-            from collections import Counter
-            rating_counts = Counter(ratings)
-            plt.figure(figsize=(10, 6))
-            categories = ['Strongly\nDisagree', 'Disagree', 'Neutral', 'Agree', 'Strongly\nAgree']
-            values = [rating_counts.get(j, 0) for j in range(1, 6)]
-            bars = plt.bar(categories, values, color='#4472C4')
-            plt.title(question, fontsize=14, fontweight='bold', pad=20)
-            plt.ylabel('Number of Responses')
-            for bar, value in zip(bars, values):
-                if value > 0:
-                    plt.text(bar.get_x() + bar.get_width()/2, bar.get_height() + 0.1,
-                            str(value), ha='center', va='bottom', fontweight='bold')
-            plt.tight_layout()
-            buf = BytesIO()
-            plt.savefig(buf, format='png')
-            plt.close()
-            buf.seek(0)
-            zip_file.writestr(f'question_{i}.png', buf.read())
-    zip_buffer.seek(0)
-    response = HttpResponse(zip_buffer, content_type='application/zip')
-    response['Content-Disposition'] = f'attachment; filename="session_{session_id}_charts.zip"'
-    return response
+    messages.warning(request, 'Chart download is unavailable in the current deployment due to memory limits.')
+    return redirect('feedback:session_detail', session_id=session_id)
 
 # --- Helper to enforce rating field labels and help text ---
 def set_rating_labels(form):
