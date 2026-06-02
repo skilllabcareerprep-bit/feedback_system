@@ -127,10 +127,10 @@ if REDIS_URL:
 # File Upload Settings
 MAX_UPLOAD_SIZE = 5242880  # 5MB
 
-# Cache settings
+# Cache settings - use dummy cache on Render free tier to minimize memory
 CACHES = {
     'default': {
-        'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+        'BACKEND': 'django.core.cache.backends.dummy.DummyCache',
     }
 }
 
