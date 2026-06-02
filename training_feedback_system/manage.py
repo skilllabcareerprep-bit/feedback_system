@@ -14,6 +14,10 @@ def main():
     sys.path.insert(0, str(project_root))
 
     if len(sys.argv) > 1 and sys.argv[1] == 'migrate':
+        if os.getenv('SKIP_MIGRATE', '0') == '1':
+            print('SKIP_MIGRATE=1 set; skipping database migration step.')
+            return
+
         try:
             import migrate_with_retry
         except ImportError:
