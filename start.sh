@@ -1,11 +1,18 @@
 #!/bin/bash
 set -e
 
-echo "Running Django migrations..."
-python training_feedback_system/manage.py migrate --noinput
+# Ensure PORT is set (Render provides this)
+PORT=${PORT:-8000}
 
-echo "Collecting static files..."
-python training_feedback_system/manage.py collectstatic --noinput
+echo "Starting Gunicorn on port $PORT..."
+cd training_feedback_system
 
-echo "Starting Gunicorn..."
-exec gunicorn training_feedback_system.wsgi:application --workers 1 --timeout 60 --bind 0.0.0.0:10000
+exec gunicorn \
+  --bind 0.0.0.0:$PORT \
+  --workers 1 \
+  --threads 1 \
+  --worker-class=sync \
+  --timeout 120 \
+  --access-logfile - \
+  --error-logfile - \
+  training_feedback_system.wsgi:application
