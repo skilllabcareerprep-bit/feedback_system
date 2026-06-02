@@ -36,4 +36,6 @@ urlpatterns = [
     path('sessions/<int:session_id>/feedback/', views.session_feedback, name='session_feedback'),
     path('form/', views.tabbed_feedback_forms, name='tabbed_feedback_forms'),
     path('feedback/', views.feedback_view, name='feedback_form'),
+    # Token-protected health check endpoint for remote DB connectivity testing
+    path('internal/health/', views.health_check, name='health_check'),
 ]

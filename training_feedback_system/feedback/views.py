@@ -1,10 +1,11 @@
 from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib import messages
-from django.http import HttpResponse, FileResponse, JsonResponse
+from django.http import HttpResponse, FileResponse, JsonResponse, HttpResponseForbidden
 from django.core.paginator import Paginator
 from django.utils import timezone
 from django.template.loader import render_to_string
 from django.conf import settings
+from django.db import connections
 from django.views.decorators.csrf import ensure_csrf_cookie, csrf_protect
 from functools import wraps
 from django.contrib.auth import authenticate, login, logout
@@ -647,3 +648,26 @@ def tabbed_feedback_forms(request):
 def feedback_view(request):
     from django.http import HttpResponse
     return HttpResponse("Feedback view is not implemented yet.")
+
+
+def health_check(request):
+    """
+    Token-protected health check endpoint to verify DB connectivity.
+
+    Use header `X-Health-Check-Token` with value set in env var `HEALTH_CHECK_TOKEN`.
+    Returns JSON with basic status. Safe for temporary debugging without shell access.
+    """
+    import os
+    secret = os.environ.get('HEALTH_CHECK_TOKEN')
+    header = request.headers.get('X-Health-Check-Token')
+    if not secret or header != secret:
+        return HttpResponseForbidden('Forbidden')
+
+    try:
+        # Try a lightweight DB operation
+        with connections['default'].cursor() as cursor:
+            cursor.execute('SELECT 1')
+            _ = cursor.fetchone()
+        return JsonResponse({'ok': True, 'db': 'connected'})
+    except Exception as e:
+        return JsonResponse({'ok': False, 'error': str(e)})
